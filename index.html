@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Billing</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <nav>
+            <a href="index.html" class="active">Dashboard</a>
+            <a href="manage.html">Kelola PS</a>
+            <a href="history.html">Riwayat</a>
+            <a href="menu.html">Menu Pesanan</a>
+            <a href="kasir.html">Kasir</a>
+        </nav>
+
+        <h1>GANG PS</h1>
+        <div id="console-list">
+            </div>
+        <div id="no-consoles-message" style="display:none; text-align:center; padding: 20px;">
+            <p>Belum ada konsol yang di-setup.</p>
+            <p>Silakan pergi ke halaman <a href="manage.html">Kelola PS</a> untuk menambahkan konsol.</p>
+        </div>
+    </div>
+
+    <div id="start-session-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h3 id="modal-title">Mulai Sesi untuk <span id="modal-console-name"></span></h3>
+            <form id="start-session-form">
+                <input type="hidden" id="modal-console-id">
+                <div class="form-group">
+                    <label for="billing-type">Pilih Paket:</label>
+                    <select id="billing-type">
+                        <option value="60">1 Jam</option>
+                        <option value="120">2 Jam</option>
+                        <option value="180">3 Jam</option>
+                        <option value="240">4 Jam</option>
+                        <option value="open">OPEN (Bebas)</option>
+                    </select>
+                </div>
+                <button type="submit">Mulai</button>
+            </form>
+        </div>
+    </div>
+    <!-- MODAL POP UP MULAI SESI -->
+    <div id="add-time-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h3>Tambah Waktu untuk <span id="add-time-console-name"></span></h3>
+            <form id="add-time-form">
+                <input type="hidden" id="add-time-console-id">
+                <div class="form-group">
+                    <label for="additional-time">Pilih Tambahan Waktu:</label>
+                    <select id="additional-time">
+                        <option value="30">30 Menit</option>
+                        <option value="60">1 Jam</option>
+                        <option value="120">2 Jam</option>
+                    </select>
+                </div>
+                <button type="submit">Tambah</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="note-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h3>Catatan untuk <span id="note-console-name"></span></h3>
+            <form id="note-form">
+                <input type="hidden" id="note-console-id">
+                <div class="form-group">
+                    <label for="console-note">Tulis catatan di sini:</label>
+                    <textarea id="console-note" rows="4"></textarea>
+                </div>
+                <button type="submit">Simpan Catatan</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="order-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h3>Tambah Pesanan untuk <span id="order-console-name"></span></h3>
+            <form id="order-form">
+                <input type="hidden" id="order-console-id">
+                <div class="form-group">
+                    <label for="menu-item-select">Pilih Item:</label>
+                    <select id="menu-item-select" required>
+                        </select>
+                </div>
+                <div class="form-group">
+                    <label for="item-quantity">Jumlah:</label>
+                    <input type="number" id="item-quantity" value="1" min="1" required>
+                </div>
+                <button type="submit">Tambah Pesanan</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

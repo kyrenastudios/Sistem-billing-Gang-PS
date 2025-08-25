@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kelola Menu</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <nav>
+            <a href="index.html">Dashboard</a>
+            <a href="manage.html">Kelola PS</a>
+            <a href="history.html">Riwayat</a>
+            <a href="menu.html" class="active">Menu Pesanan</a>
+            <a href="kasir.html">Kasir</a>
+        </nav>
+
+        <h1>Kelola Menu Pesanan</h1>
+        
+        <div class="container" style="max-width: 500px; box-shadow: none; padding:0;">
+            <form id="add-menu-item-form">
+                <div class="form-group">
+                    <label for="new-item-name">Nama Item:</label>
+                    <input type="text" id="new-item-name" required placeholder="Masukkan nama menu">
+                </div>
+                <div class="form-group">
+                    <label for="new-item-price">Harga (Rp):</label>
+                    <input type="number" id="new-item-price" required placeholder="Contoh: 10000">
+                </div>
+                <button type="submit">Tambah ke Menu</button>
+            </form>
+        </div>
+        
+        <hr style="margin: 30px 0;">
+
+        <h2>Daftar Menu Saat Ini</h2>
+        <table id="menu-list-table">
+            <thead>
+                <tr>
+                    <th>Nama Item</th>
+                    <th>Harga</th>
+                    <th>Aksi</th>
+                </tr>
+            </thead>
+            <tbody id="menu-list-body">
+                </tbody>
+        </table>
+        <p id="no-menu-items" style="display:none; text-align: center;">Belum ada item di menu. Silakan tambahkan item baru.</p>
+    </div>
+    <script src="menu.js"></script>
+</body>
+</html>

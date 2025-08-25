@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kasir Penjualan</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <nav>
+            <a href="index.html">Dashboard</a>
+            <a href="manage.html">Kelola PS</a>
+            <a href="history.html">Riwayat</a>
+            <a href="menu.html">Menu Pesanan</a>
+            <a href="kasir.html" class="active">Kasir</a>
+        </nav>
+
+        <h1>Kasir Penjualan Langsung</h1>
+        <div style="display: flex; flex-direction: column; gap: 20px; flex-wrap: wrap;">
+
+            <div style="flex: 1; min-width: 300px;">
+                <h3>Tambah Item ke Keranjang</h3>
+                <form id="kasir-form">
+                    <div class="form-group">
+                        <label for="kasir-item-select">Pilih Item:</label>
+                        <select id="kasir-item-select" required>
+                            </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="kasir-item-quantity">Jumlah:</label>
+                        <input type="number" id="kasir-item-quantity" value="1" min="1" required>
+                    </div>
+                    <button type="submit" class="btn-add-order" style="width: 100%;">Tambah ke Keranjang</button>
+                </form>
+            </div>
+
+            <div style="flex: 1.5; min-width: 400px;">
+                <h3>Keranjang Belanja</h3>
+                <div id="cart-container" style="border: 1px solid #ddd; padding: 15px; border-radius: 8px; min-height: 150px;">
+                    <ul id="kasir-cart-list" style="list-style-type: none; padding-left: 0; margin-bottom: 20px;">
+                        <li>Keranjang kosong.</li>
+                    </ul>
+                    <hr>
+                    <div id="kasir-total" style="text-align: right; font-size: 1.3em; font-weight: bold;">
+                        Total: Rp 0
+                    </div>
+                    <div style="text-align: right; margin-top: 20px;">
+                        <button id="checkout-btn" class="btn-stop" style="padding: 12px 20px; font-size: 1.1em;">Selesaikan & Catat Transaksi</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="kasir.js"></script>
+</body>
+</html>
