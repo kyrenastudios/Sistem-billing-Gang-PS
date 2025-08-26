@@ -72,7 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     resetBtn.addEventListener('click', () => {
-        if (confirm('APAKAH ANDA YAKIN? Semua data konsol dan riwayat transaksi akan dihapus secara permanen dan tidak bisa dikembalikan.')) {
+        if (confirm('APAKAH ANDA YAKIN? Semua data konsol dan Histori Histori akan dihapus secara permanen dan tidak bisa dikembalikan.')) {
             if (confirm('Peringatan terakhir! Tetap lanjutkan penghapusan?')) {
                 localStorage.clear();
                 alert('Semua data berhasil dihapus.');

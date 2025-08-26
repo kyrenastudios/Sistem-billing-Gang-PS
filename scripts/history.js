@@ -1,4 +1,4 @@
-//Untuk mengatur histori transaksi
+//Untuk mengatur histori Histori
 document.addEventListener('DOMContentLoaded', () => {
     const dateInput = document.getElementById('history-date');
     const historyBody = document.getElementById('history-body');
@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
     }
     
-    // RIWAYAT DENGAN JUMLAH PESANAN
+    // Histori DENGAN JUMLAH PESANAN
     function renderHistory(date) {
         const allHistory = JSON.parse(localStorage.getItem('history')) || [];
         const filteredHistory = allHistory.filter(item => item.date === date);

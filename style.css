@@ -308,7 +308,7 @@ button:disabled { background-color: #ccc; cursor: not-allowed; }
 .close-btn { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
 .close-btn:hover, .close-btn:focus { color: black; }
 
-/* Halaman Riwayat */
+/* Halaman Histori */
 #history-controls { text-align: center; margin-bottom: 20px; }
 #history-table { width: 100%; border-collapse: collapse; }
 #history-table th, #history-table td { border: 1px solid #ddd; padding: 10px; text-align: left; }
@@ -329,7 +329,7 @@ button:disabled { background-color: #ccc; cursor: not-allowed; }
     cursor: pointer;
 }
 
-/* Riwayat */
+/* Histori */
 #history-content table {
     width: 100%;
     border-collapse: collapse;

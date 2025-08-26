@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let totalCost = 0;
 
         if (cashierCart.length === 0) {
-            cartList.innerHTML = '<li>Keranjang kosong.</li>';
+            cartList.innerHTML = '<li>Penjualan Masih kosong</li>';
         } else {
             cashierCart.forEach((item, index) => {
                 const itemTotal = item.price * item.quantity;
@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
         quantityInput.value = 1;
     });
 
-    // Event listener untuk menghapus item dari keranjang
+    // Event listener untuk menghapus item dari Order
     cartList.addEventListener('click', e => {
         if (e.target.matches('.btn-delete-order')) {
             const cartIndex = parseInt(e.target.dataset.cartIndex, 10);
@@ -86,7 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Event listener untuk tombol checkout
     checkoutBtn.addEventListener('click', () => {
         if (cashierCart.length === 0) {
-            alert('Keranjang belanja kosong!');
+            alert('Pesanan Kosong!');
             return;
         }
 
@@ -104,13 +104,13 @@ document.addEventListener('DOMContentLoaded', () => {
             orderCost: orderCost,
             totalCost: orderCost,
             orders: cashierCart,
-            notes: 'Transaksi kasir',
+            notes: 'Histori kasir',
         });
         localStorage.setItem('history', JSON.stringify(history));
 
-        alert(`Transaksi berhasil dicatat!\nTotal Penjualan: ${formatCurrency(orderCost)}`);
+        alert(`Histori berhasil dicatat!\nTotal Penjualan: ${formatCurrency(orderCost)}`);
         
-        // Reset keranjang setelah transaksi selesai
+        // Reset Order setelah Histori selesai
         cashierCart = [];
         renderCart();
     });
