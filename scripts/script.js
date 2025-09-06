@@ -1,21 +1,10 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Harga per jam (dalam Rupiah)
+    // Harga per jam standar (untuk hitungan default, OPEN, dan Tambah Waktu)
     const PRICES = {
         PS3: 5000,
         PS4: 8000,
         PS5: 13000,
     };
-
-    // Definisikan semua paket spesial atau promo di sini
-    const SPECIAL_PACKAGES = [
-        {
-            id: 'ps5_promo_3jam',          // ID unik untuk paket ini
-            name: 'Paket Spesial 3 Jam',  // Nama yang akan tampil di pilihan
-            consoleType: 'PS5',           // Hanya berlaku untuk PS5
-            durationMinutes: 180,         // Durasi dalam menit (3 jam)
-            price: 30000                  // Harga spesialnya
-        },
-    ];
 
     // Definisi Elemen DOM
     const consoleList = document.getElementById('console-list');
@@ -44,7 +33,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    // [DIUBAH] Render consoles sekarang menampilkan waktu yang dibekukan saat pause
     function renderConsoles() {
         consoleList.innerHTML = '';
         if (!consoles || consoles.length === 0) {
@@ -60,6 +48,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (console.status === 'in-use' || console.status === 'paused') {
                 const session = console.session;
+                if (!session) { // Pengaman jika data sesi rusak
+                    console.status = 'available';
+                    saveAndRender();
+                    return;
+                }
                 const timerId = `timer-${console.id}`;
                 const billingTypeDisplay = session.type === 'open' ? 'OPEN' : `Paket (Total ${session.totalPaketMinutes / 60} Jam - ${formatCurrency(session.totalPaketCost)})`;
                 const realTimeCostHTML = session.type === 'open' ? `<p>Biaya Saat Ini: <span class="realtime-cost" id="cost-${console.id}">${formatCurrency(calculateCost(console.type, Math.ceil(((session.frozenElapsedTime || 0)) / 60000)))}</span></p>` : '';
@@ -69,8 +62,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     const orderItems = session.orders.map((o, index) => `<li class="order-item"><span>${o.name} x ${o.quantity} - ${formatCurrency(o.price * o.quantity)}</span><button class="btn-delete-order" data-order-index="${index}" title="Hapus Pesanan" ${console.status === 'paused' ? 'disabled' : ''}>&times;</button></li>`).join('');
                     ordersDisplay = `<div class="session-details"><strong>Pesanan:</strong><ul>${orderItems}</ul></div>`;
                 }
-
-                // Tentukan waktu yang akan ditampilkan
                 let timerDisplay = '00:00:00';
                 if(console.status === 'paused') {
                     timerDisplay = session.frozenTimeDisplay || '00:00:00';
@@ -97,7 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateTimers() {
         const now = new Date().getTime();
         consoles.forEach(c => {
-            if (c.status === 'in-use') {
+            if (c.status === 'in-use' && c.session) {
                 const timerElement = document.getElementById(`timer-${c.id}`);
                 if (!timerElement) return;
                 const session = c.session;
@@ -128,50 +119,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- FUNGSI MANAJEMEN SESI ---
 
-    // [DIUBAH] Fungsi pause sekarang menyimpan waktu terakhir di layar
     function pauseSession(consoleId) {
         const console = findConsole(consoleId);
-        if (!console || console.status !== 'in-use') return;
-        
+        if (!console || console.status !== 'in-use' || !console.session) return;
         const now = new Date().getTime();
         const session = console.session;
-
-        // Simpan waktu yang ditampilkan saat ini sebelum di-pause
         if (session.type === 'open') {
             const elapsedTime = now - session.startTime - (session.totalPausedDuration || 0);
             session.frozenTimeDisplay = formatDuration(elapsedTime);
-            session.frozenElapsedTime = elapsedTime; // Simpan juga waktu mentahnya untuk biaya
-        } else { // tipe paket
+            session.frozenElapsedTime = elapsedTime;
+        } else {
             const remainingTime = session.endTime - now;
             session.frozenTimeDisplay = formatDuration(remainingTime);
         }
-
         console.status = 'paused';
-        console.session.pauseTime = now; // Catat waktu pause
+        console.session.pauseTime = now;
         saveAndRender();
     }
 
-    // [DIUBAH] Fungsi resume sekarang membersihkan waktu yang disimpan
     function resumeSession(consoleId) {
         const console = findConsole(consoleId);
-        if (!console || console.status !== 'paused') return;
-        
+        if (!console || console.status !== 'paused' || !console.session) return;
         const pausedDuration = new Date().getTime() - console.session.pauseTime;
         console.session.totalPausedDuration = (console.session.totalPausedDuration || 0) + pausedDuration;
-
         if (console.session.type === 'paket') {
             console.session.endTime += pausedDuration;
         }
-
         console.status = 'in-use';
         console.session.pauseTime = null;
-        console.session.frozenTimeDisplay = null; // Hapus waktu yang dibekukan
+        console.session.frozenTimeDisplay = null;
         console.session.frozenElapsedTime = null;
         saveAndRender();
     }
-    
-    // ... Sisa kode tidak ada perubahan, namun tetap disertakan secara penuh ...
-    
+
     function stopSession(consoleId) {
         const console = findConsole(consoleId);
         if (!console || !console.session) return;
@@ -179,10 +159,8 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Sesi sedang dijeda. Harap lanjutkan sesi terlebih dahulu sebelum menghentikannya.');
             return;
         }
-
         const session = console.session;
-        let rentalCost = 0;
-        let durationMs;
+        let rentalCost = 0, durationMs;
         if (session.type === 'paket') {
             rentalCost = session.totalPaketCost; 
             durationMs = new Date().getTime() - session.startTime - (session.totalPausedDuration || 0);
@@ -194,7 +172,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const orderCost = session.orders.reduce((sum, order) => sum + (order.price * order.quantity), 0);
         const totalCost = rentalCost + orderCost;
-        
         saveToHistory(console, session, rentalCost, orderCost, totalCost, durationMs);
         alert(`Sesi Selesai!\n\nBiaya Sewa: ${formatCurrency(rentalCost)}\nBiaya Pesanan: ${formatCurrency(orderCost)}\n---------------------------\nTOTAL BIAYA: ${formatCurrency(totalCost)}`);
         resetConsole(console);
@@ -205,15 +182,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const now = new Date();
         const durationMinutes = Math.ceil(actualDurationMs / (1000 * 60));
         history.push({ 
-            date: now.toISOString().split('T')[0],
-            consoleName: console.name,
-            startTime: new Date(session.startTime).toLocaleTimeString('id-ID'),
-            endTime: now.toLocaleTimeString('id-ID'),
-            durationMinutes,
-            rentalCost, orderCost, totalCost, 
-            orders: session.orders,
-            billingInfo: session.billingInfo,
-            notes: session.notes,
+            date: now.toISOString().split('T')[0], consoleName: console.name, startTime: new Date(session.startTime).toLocaleTimeString('id-ID'),
+            endTime: now.toLocaleTimeString('id-ID'), durationMinutes, rentalCost, orderCost, totalCost, 
+            orders: session.orders, billingInfo: session.billingInfo, notes: session.notes,
         });
         localStorage.setItem('history', JSON.stringify(history));
     }
@@ -224,40 +195,57 @@ document.addEventListener('DOMContentLoaded', () => {
         saveAndRender();
     }
     
+    // --- EVENT LISTENERS ---
+
     consoleList.addEventListener('click', e => {
         const card = e.target.closest('.console-card');
         if (!card) return;
         const consoleId = card.dataset.id;
         const console = findConsole(consoleId);
+        if (!console) return; // Pengaman jika konsol tidak ditemukan
 
-        if (e.target.matches('.btn-pause')) {
-            pauseSession(consoleId);
-        } else if (e.target.matches('.btn-resume')) {
-            resumeSession(consoleId);
-        } else if (e.target.matches('.btn-start')) {
+        if (e.target.matches('.btn-start')) {
             const select = modals.start.querySelector('#billing-type');
-            select.innerHTML = `<option value="60">1 Jam</option><option value="120">2 Jam</option><option value="180">3 Jam</option><option value="240">4 Jam</option><option value="open">OPEN (Bebas)</option>`;
-            const availablePromos = SPECIAL_PACKAGES.filter(p => p.consoleType === console.type);
-            if (availablePromos.length > 0) {
+            select.innerHTML = '';
+            const defaultDurations = [60, 120, 180, 240];
+            defaultDurations.forEach(minutes => {
+                const hours = minutes / 60;
+                const price = PRICES[console.type] * hours;
+                const option = document.createElement('option');
+                option.value = `default_${minutes}`; 
+                option.textContent = `Main ${hours} Jam - ${formatCurrency(price)}`;
+                select.appendChild(option);
+            });
+            const customPackages = JSON.parse(localStorage.getItem('customPackages')) || [];
+            const availablePackages = customPackages.filter(p => p.consoleType === console.type);
+            if (availablePackages.length > 0) {
                 const separator = document.createElement('option');
                 separator.disabled = true;
-                separator.textContent = '--- PROMO ---';
+                separator.textContent = '--- Paket Kustom/Promo ---';
                 select.appendChild(separator);
-                availablePromos.forEach(promo => {
+                availablePackages.forEach(paket => {
                     const option = document.createElement('option');
-                    option.value = promo.id;
-                    option.textContent = `${promo.name} - ${formatCurrency(promo.price)}`;
+                    option.value = paket.id;
+                    option.textContent = `${paket.name} (${paket.durationMinutes} mnt) - ${formatCurrency(paket.price)}`;
                     select.appendChild(option);
                 });
             }
+            const openOption = document.createElement('option');
+            openOption.value = 'open';
+            openOption.textContent = 'OPEN (Bebas)';
+            select.appendChild(openOption);
             modals.start.querySelector('#modal-console-name').textContent = console.name;
             modals.start.querySelector('#modal-console-id').value = console.id;
             modals.start.style.display = 'block';
+        } else if (e.target.matches('.btn-pause')) {
+            pauseSession(consoleId);
+        } else if (e.target.matches('.btn-resume')) {
+            resumeSession(consoleId);
         } else if (e.target.matches('.btn-stop')) { 
             stopSession(consoleId); 
         } else if (e.target.matches('.btn-delete-order')) { 
             const orderIndex = parseInt(e.target.dataset.orderIndex, 10); 
-            if (confirm(`Anda yakin ingin menghapus pesanan "${console.session.orders[orderIndex].name} x ${console.session.orders[orderIndex].quantity}"?`)) { 
+            if (console.session && confirm(`Anda yakin ingin menghapus pesanan "${console.session.orders[orderIndex].name} x ${console.session.orders[orderIndex].quantity}"?`)) { 
                 console.session.orders.splice(orderIndex, 1); 
                 saveAndRender(); 
             } 
@@ -290,18 +278,28 @@ document.addEventListener('DOMContentLoaded', () => {
         const form = e.target;
         const consoleId = form.querySelector('#modal-console-id').value;
         const billingChoice = form.querySelector('#billing-type').value;
+        if (!billingChoice) {
+            alert('Silakan pilih paket terlebih dahulu.');
+            return;
+        }
         const console = findConsole(consoleId);
         console.status = 'in-use';
         const now = new Date().getTime();
-        const promo = SPECIAL_PACKAGES.find(p => p.id === billingChoice);
+        const customPackages = JSON.parse(localStorage.getItem('customPackages')) || [];
+        const selectedPackage = customPackages.find(p => p.id === billingChoice);
         let sessionData = { startTime: now, notes: '', orders: [], totalPausedDuration: 0 };
-        if (promo) {
-            Object.assign(sessionData, { type: 'paket', totalPaketMinutes: promo.durationMinutes, totalPaketCost: promo.price, endTime: now + promo.durationMinutes * 60 * 1000, billingInfo: promo.name });
+        if (billingChoice.startsWith('default_')) {
+            const duration = parseInt(billingChoice.split('_')[1], 10);
+            const standardCost = PRICES[console.type] * (duration / 60);
+            Object.assign(sessionData, { type: 'paket', totalPaketMinutes: duration, totalPaketCost: standardCost, endTime: now + duration * 60 * 1000, billingInfo: `Main ${duration/60} Jam` });
+        } else if (selectedPackage) {
+            Object.assign(sessionData, { type: 'paket', totalPaketMinutes: selectedPackage.durationMinutes, totalPaketCost: selectedPackage.price, endTime: now + selectedPackage.durationMinutes * 60 * 1000, billingInfo: selectedPackage.name });
         } else if (billingChoice === 'open') {
             Object.assign(sessionData, { type: 'open', billingInfo: 'OPEN' });
         } else {
-            const duration = parseInt(billingChoice, 10);
-            Object.assign(sessionData, { type: 'paket', totalPaketMinutes: duration, totalPaketCost: PRICES[console.type] * (duration / 60), endTime: now + duration * 60 * 1000, billingInfo: `Paket ${duration/60} Jam` });
+            alert('Paket tidak valid. Silakan pilih paket yang tersedia.');
+            console.status = 'available';
+            return;
         }
         console.session = sessionData;
         saveAndRender();
