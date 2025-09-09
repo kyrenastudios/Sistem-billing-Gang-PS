@@ -62,17 +62,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     const orderItems = session.orders.map((o, index) => `<li class="order-item"><span>${o.name} x ${o.quantity} - ${formatCurrency(o.price * o.quantity)}</span><button class="btn-delete-order" data-order-index="${index}" title="Hapus Pesanan" ${console.status === 'paused' ? 'disabled' : ''}>&times;</button></li>`).join('');
                     ordersDisplay = `<div class="session-details"><strong>Pesanan:</strong><ul>${orderItems}</ul></div>`;
                 }
-                let timerDisplay = '00:00:00';
+                let timerDisplay = '00 sada: 00 : 00';
                 if(console.status === 'paused') {
                     timerDisplay = session.frozenTimeDisplay || '00:00:00';
                 }
                 
                 if (console.status === 'in-use') {
                     detailsHTML = `<p class="status in-use">SEDANG DIGUNAKAN</p>`;
-                    actionsHTML = `<button class="btn-stop">Stop Sesi</button><button class="btn-pause" style="background-color: #ff9800;">Pause</button> ${session.type !== 'open' ? `<button class="btn-add-time">Tambah Waktu</button>` : ''}<button class="btn-edit-note">Catatan</button><button class="btn-add-order">Tambah Pesanan</button>`;
+                    actionsHTML = `<button class="btn-stop">Sesi Selesai</button><button class="btn-pause" style="background-color: #ff9800;">Pause</button> ${session.type !== 'open' ? `<button class="btn-add-time">Tambah Waktu</button>` : ''}<button class="btn-edit-note">Catatan</button><button class="btn-add-order">Tambah Pesanan</button>`;
                 } else { // status === 'paused'
                     detailsHTML = `<p class="status" style="color:#2196f3; font-weight:bold;">DIJEDA (PAUSED)</p>`;
-                    actionsHTML = `<button class="btn-stop" disabled>Stop Sesi</button><button class="btn-resume" style="background-color: #4caf50;">Lanjutkan</button> ${session.type !== 'open' ? `<button class="btn-add-time" disabled>Tambah Waktu</button>` : ''}<button class="btn-edit-note" disabled>Catatan</button><button class="btn-add-order" disabled>Tambah Pesanan</button>`;
+                    actionsHTML = `<button class="btn-stop" disabled>Sesi Selesai</button><button class="btn-resume" style="background-color: #4caf50;">Lanjutkan</button> ${session.type !== 'open' ? `<button class="btn-add-time" disabled>Tambah Waktu</button>` : ''}<button class="btn-edit-note" disabled>Catatan</button><button class="btn-add-order" disabled>Tambah Pesanan</button>`;
                 }
                 detailsHTML += `<div class="timer" id="${timerId}">${timerDisplay}</div><p>Tipe: ${billingTypeDisplay}</p>${realTimeCostHTML}${notesDisplay}${ordersDisplay}`;
             } else { // status === 'available'
@@ -207,7 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target.matches('.btn-start')) {
             const select = modals.start.querySelector('#billing-type');
             select.innerHTML = '';
-            const defaultDurations = [60, 120, 180, 240];
+            const defaultDurations = [60, 120, 180, 240]; //mengatur durasi defaultnya
             defaultDurations.forEach(minutes => {
                 const hours = minutes / 60;
                 const price = PRICES[console.type] * hours;
