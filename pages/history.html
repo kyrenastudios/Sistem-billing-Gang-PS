@@ -20,10 +20,6 @@
         </nav>
 
         <h1>Histori</h1>
-        
-        <div id="daily-total-container" style="text-align: right; margin-top: 20px; font-size: 1.2em; font-weight: 600;">
-        </div>
-    
     <div id="recap-modal" class="modal">
         <div class="modal-content" style="max-width: 600px;">
             <span class="close-btn">&times;</span>
@@ -54,6 +50,9 @@
         <button id="open-recap-btn">📈 Buat Rekap Penjualan</button>
     </div>
 
+    <div id="daily-total-container" style="text-align: left; margin-top: 20px; margin-bottom: 20px; font-size: 1.2em; font-weight: 600;">
+    </div>
+
         <table id="history-table">
             <thead>
                 <tr>
@@ -68,7 +67,7 @@
                 </tbody>
         </table>
         <div id="total-revenue"></div>
-        <p id="no-history-message" style="text-align:center; display:none;">Tidak ada Histori pada tanggal yang dipilih.</p>
+        <p id="no-history-message" style="text-align:center; display:none;">Belum ada Transaksi pada tanggal ini.</p>
     </div>
     
     <script src="../scripts/history.js"></script>

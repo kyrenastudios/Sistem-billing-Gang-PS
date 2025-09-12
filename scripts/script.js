@@ -291,7 +291,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target.matches('.btn-start')) {
             const select = modals.start.querySelector('#billing-type');
             select.innerHTML = '';
-            const defaultDurations = [60, 120, 180, 240];
+            const defaultDurations = [60, 120];
             defaultDurations.forEach(minutes => {
                 const hours = minutes / 60;
                 const price = PRICES[console.type] * hours;

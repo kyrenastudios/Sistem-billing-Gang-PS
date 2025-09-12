@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Definisi Elemen DOM
     const form = document.getElementById('paket-form');
     const formTitle = document.getElementById('form-title');
     const paketIdInput = document.getElementById('paket-id');
@@ -9,6 +10,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const submitBtn = document.getElementById('submit-btn');
     const cancelBtn = document.getElementById('cancel-edit-btn');
     const tableBody = document.getElementById('paket-list-body');
+
+    // Pastikan semua elemen penting ditemukan
+    if (!form || !tableBody || !cancelBtn) {
+        console.error("Elemen penting di halaman 'Kelola Paket' tidak ditemukan. Periksa file paket.html Anda.");
+        return;
+    }
 
     let customPackages = JSON.parse(localStorage.getItem('customPackages')) || [];
 
@@ -44,12 +51,13 @@ document.addEventListener('DOMContentLoaded', () => {
         formTitle.textContent = 'Tambah Paket Baru';
         submitBtn.textContent = 'Simpan Paket';
         cancelBtn.style.display = 'none';
+        paketNameInput.focus();
     }
 
     form.addEventListener('submit', (e) => {
         e.preventDefault();
         const id = paketIdInput.value;
-        const newPaket = {
+        const newPaketData = {
             name: paketNameInput.value,
             durationMinutes: parseInt(paketDurationInput.value, 10),
             price: parseInt(paketPriceInput.value, 10),
@@ -58,10 +66,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (id) { // Mode Edit
             const index = customPackages.findIndex(p => p.id === id);
-            customPackages[index] = { ...customPackages[index], ...newPaket };
+            if (index !== -1) {
+                customPackages[index] = { ...customPackages[index], ...newPaketData };
+            }
         } else { // Mode Tambah Baru
-            newPaket.id = `pkg_${new Date().getTime()}`;
-            customPackages.push(newPaket);
+            newPaketData.id = `pkg_${new Date().getTime()}`;
+            customPackages.push(newPaketData);
         }
 
         savePackages();
@@ -69,9 +79,12 @@ document.addEventListener('DOMContentLoaded', () => {
         resetForm();
     });
 
+    // [DIUBAH] Perbaikan kecil di sini
     tableBody.addEventListener('click', (e) => {
         const target = e.target;
+        // Pindahkan `id` ke sini agar terdefinisi dengan baik
         const id = target.dataset.id;
+        if (!id) return; // Keluar jika yang diklik bukan tombol dengan data-id
 
         if (target.classList.contains('btn-delete')) {
             if (confirm('Anda yakin ingin menghapus paket ini?')) {
@@ -84,16 +97,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (target.classList.contains('btn-edit')) {
             const paketToEdit = customPackages.find(p => p.id === id);
             if (paketToEdit) {
-                formTitle.textContent = 'Edit Paket';
-                submitBtn.textContent = 'Update Paket';
-                cancelBtn.style.display = 'inline-block';
-
                 paketIdInput.value = paketToEdit.id;
                 paketNameInput.value = paketToEdit.name;
                 paketDurationInput.value = paketToEdit.durationMinutes;
                 paketPriceInput.value = paketToEdit.price;
                 paketConsoleTypeInput.value = paketToEdit.consoleType;
-                window.scrollTo(0, 0); // Scroll ke atas untuk edit
+                
+                formTitle.textContent = 'Edit Paket';
+                submitBtn.textContent = 'Update Paket';
+                cancelBtn.style.display = 'inline-block';
+                
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             }
         }
     });
