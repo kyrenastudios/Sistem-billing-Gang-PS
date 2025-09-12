@@ -6,6 +6,7 @@
     <title>Histori</title>
     <link rel="stylesheet" href="../style.css">
     <link rel="icon" href="/icon.png" type="image/png">
+    
 </head>
 <body>
     <div class="container">
@@ -20,15 +21,38 @@
 
         <h1>Histori</h1>
         
-        <div id="total-revenue-container">
-            <div id="total-revenue-all-time"></div>
-            <div id="total-revenue-daily"></div>
+        <div id="daily-total-container" style="text-align: right; margin-top: 20px; font-size: 1.2em; font-weight: 600;">
         </div>
+    
+    <div id="recap-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <span class="close-btn">&times;</span>
+            <h3>Buat Rekap Penjualan</h3>
+            <div class="form-group" style="display: flex; gap: 15px;">
+                <div style="flex: 1;">
+                    <label for="recap-start-date">Dari Tanggal:</label>
+                    <input type="date" id="recap-start-date">
+                </div>
+                <div style="flex: 1;">
+                    <label for="recap-end-date">Sampai Tanggal:</label>
+                    <input type="date" id="recap-end-date">
+                </div>
+            </div>
+            <button id="generate-recap-btn" style="width: 100%;">Buat Rekap</button>
+            <hr style="margin: 20px 0;">
+            <div id="recap-results">
+                </div>
+                <!-- <div id="recap-actions" style="text-align: right; margin-top: 20px; display: none;">
+                    <button id="print-recap-pdf-btn">📄 Cetak Rincian ke PDF</button>
+                </div> -->
+        </div>
+    </div>
 
-        <div id="history-controls">
-            <label for="history-date">Pilih Tanggal:</label>
-            <input type="date" id="history-date">
-        </div>
+    <div id="history-controls">
+        <label for="history-date">Pilih Tanggal:</label>
+        <input type="date" id="history-date">
+        <button id="open-recap-btn">📈 Buat Rekap Penjualan</button>
+    </div>
 
         <table id="history-table">
             <thead>
@@ -46,6 +70,7 @@
         <div id="total-revenue"></div>
         <p id="no-history-message" style="text-align:center; display:none;">Tidak ada Histori pada tanggal yang dipilih.</p>
     </div>
+    
     <script src="../scripts/history.js"></script>
 </body>
 </html>

@@ -17,7 +17,10 @@
             <a href="/pages/menu.html">Menu Pesanan</a>
             <a href="/pages/kasir.html">Kasir</a>
         </nav>
-
+        <div class="container" style="max-width: 600px; padding: 15px; margin-bottom: 20px; text-align: center; background-color: #e8eaf6;">
+            <h2 style="margin-top:0;">Penjualan Langsung</h2>
+            <button id="open-cashier-btn" style="padding: 12px 20px; font-size: 1.1em;">Buka Kasir</button>
+        </div>
         <h1>GANG PS</h1>
         <div id="console-list">
             </div>
@@ -99,6 +102,31 @@
                 </div>
                 <button type="submit">Tambah Pesanan</button>
             </form>
+        </div>
+    </div>
+
+    <div id="cashier-modal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <span class="close-btn">&times;</span>
+            <h3>Kasir Penjualan Langsung</h3>
+            <form id="cashier-form">
+                <div class="form-group">
+                    <label for="cashier-item-select">Pilih Item:</label>
+                    <select id="cashier-item-select" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="cashier-item-quantity">Jumlah:</label>
+                    <input type="number" id="cashier-item-quantity" value="1" min="1" required>
+                </div>
+                <button type="submit" class="btn-add-order">Tambah ke Keranjang</button>
+            </form>
+            <hr>
+            <h4>Keranjang Belanja</h4>
+            <ul id="cashier-cart-list" style="list-style-type: none; padding-left: 0;"></ul>
+            <div id="cashier-total" style="text-align: right; font-size: 1.2em; font-weight: bold; margin-top: 15px;"></div>
+            <div style="text-align: right; margin-top: 20px;">
+                <button id="checkout-btn" class="btn-stop">Selesaikan & Catat Transaksi</button>
+            </div>
         </div>
     </div>
 
