@@ -47,6 +47,24 @@ h1, h2, h3 {
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
+.console-card.ps3 h4 {
+    font-size: 1.3em; 
+    color: #c0ca33; 
+    font-family: 'Verdana', sans-serif; 
+}
+
+.console-card.ps4 h4 {
+    font-size: 1.4em;
+    color: #1e88e5; 
+    font-weight: bold; 
+}
+
+.console-card.ps5 h4 {
+    font-size: 1.5em; 
+    color: #3949ab; 
+    text-transform: uppercase; 
+}
+
 .console-card h4 {
     margin-top: 0;
     font-size: 1.2em;
@@ -514,3 +532,12 @@ table#paket-list-table td button {
     margin: 0 5px 0 0;
 }
 
+footer {
+    text-align: center;
+    margin-top: 40px; 
+    padding-top: 20px;
+    border-top: 1px solid #e0e0e0; 
+    font-size: 16px;
+    font-weight: bold;
+    color: #ffffff; 
+}
