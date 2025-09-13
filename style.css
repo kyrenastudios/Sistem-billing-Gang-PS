@@ -541,3 +541,7 @@ footer {
     font-weight: bold;
     color: #ffffff; 
 }
+
+.totalin {
+    color: green;
+}

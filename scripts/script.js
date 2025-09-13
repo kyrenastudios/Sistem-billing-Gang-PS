@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Harga per jam standar (untuk hitungan default, OPEN, dan Tambah Waktu)
+    // Harga per jam standar
     const PRICES = {
         PS3: 5000,
         PS4: 8000,
@@ -16,18 +16,21 @@ document.addEventListener('DOMContentLoaded', () => {
         order: document.getElementById('order-modal'),
         cashier: document.getElementById('cashier-modal'),
     };
+    const openCashierBtn = document.getElementById('open-cashier-btn');
+    
+    // Inisialisasi variabel state utama
     let consoles = [];
     let menuItems = [];
     let cashierCart = [];
+    let timerInterval = null; // Variabel untuk menampung interval timer agar tidak duplikat
 
-    const openCashierBtn = document.getElementById('open-cashier-btn');
+    // --- LOGIKA KASIR MODAL (DIPERBAIKI DENGAN localStorage) ---
 
     function renderCashierCart() {
         const cartList = modals.cashier.querySelector('#cashier-cart-list');
         const totalElement = modals.cashier.querySelector('#cashier-total');
         cartList.innerHTML = '';
         let totalCost = 0;
-
         if (cashierCart.length === 0) {
             cartList.innerHTML = '<li>Keranjang kosong.</li>';
         } else {
@@ -45,6 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (openCashierBtn) {
         openCashierBtn.addEventListener('click', () => {
+            // Logika untuk mengisi dropdown menu di modal kasir
             const select = modals.cashier.querySelector('#cashier-item-select');
             select.innerHTML = '<option value="" disabled selected>-- Pilih Item --</option>';
             if (menuItems.length > 0) {
@@ -57,6 +61,8 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 select.innerHTML = '<option value="">Menu kosong</option>';
             }
+            // Tampilkan keranjang yang mungkin sudah ada isinya saat modal dibuka
+            renderCashierCart();
             modals.cashier.style.display = 'block';
         });
     }
@@ -74,6 +80,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     cashierCart.push({ ...selectedItem, quantity });
                 }
+                // SIMPAN: Simpan state keranjang kasir setiap kali ada penambahan
+                localStorage.setItem('cashierCart_dashboard', JSON.stringify(cashierCart));
                 renderCashierCart();
             }
             e.target.reset();
@@ -84,15 +92,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.target.matches('.btn-delete-order')) {
                 const cartIndex = parseInt(e.target.dataset.cartIndex, 10);
                 cashierCart.splice(cartIndex, 1);
+                // SIMPAN: Simpan state keranjang kasir setiap kali ada penghapusan
+                localStorage.setItem('cashierCart_dashboard', JSON.stringify(cashierCart));
                 renderCashierCart();
             }
         });
 
         modals.cashier.querySelector('#checkout-btn').addEventListener('click', () => {
-            if (cashierCart.length === 0) {
-                alert('Keranjang belanja kosong!');
-                return;
-            }
+            if (cashierCart.length === 0) { alert('Keranjang belanja kosong!'); return; }
             const orderCost = cashierCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
             const history = JSON.parse(localStorage.getItem('history')) || [];
             const now = new Date();
@@ -105,32 +112,45 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('history', JSON.stringify(history));
             alert(`Transaksi berhasil dicatat!\nTotal Penjualan: ${formatCurrency(orderCost)}`);
             cashierCart = [];
+            // HAPUS: Hapus keranjang dari localStorage setelah checkout berhasil
+            localStorage.removeItem('cashierCart_dashboard');
             renderCashierCart();
             modals.cashier.style.display = 'none';
         });
     }
 
-    // --- FUNGSI UTAMA & TAMPILAN ---
+    // --- FUNGSI UTAMA & INISIALISASI (DIPERBAIKI SECARA TOTAL) ---
 
     function initialize() {
         try {
-            const savedConsoles = JSON.parse(localStorage.getItem('consoles'));
+            // MUAT: Muat semua state dari localStorage di satu tempat
+            consoles = JSON.parse(localStorage.getItem('consoles')) || [];
             menuItems = JSON.parse(localStorage.getItem('menuItems')) || [];
-            if (savedConsoles && Array.isArray(savedConsoles) && savedConsoles.length > 0) {
-                consoles = savedConsoles;
+            cashierCart = JSON.parse(localStorage.getItem('cashierCart_dashboard')) || [];
+
+            if (consoles.length > 0) {
+                consoleList.style.display = 'grid'; // atau 'flex' sesuai CSS-mu
+                noConsolesMessage.style.display = 'none';
                 renderConsoles();
-                setInterval(updateTimers, 1000);
+                
+                // PERBAIKAN PENTING: Pastikan hanya ada satu interval yang berjalan untuk menghindari bug
+                clearInterval(timerInterval); // Hentikan interval lama jika ada (misal dari refresh)
+                timerInterval = setInterval(updateTimers, 1000); // Mulai interval baru yang bersih
             } else {
                 consoleList.style.display = 'none';
                 noConsolesMessage.style.display = 'block';
             }
         } catch (error) {
-            console.error("Gagal memuat data dari localStorage.", error);
+            console.error("Gagal memuat data dari localStorage:", error);
             consoleList.style.display = 'none';
             noConsolesMessage.innerHTML = "<p>Gagal memuat data. Coba hapus cache browser.</p>";
             noConsolesMessage.style.display = 'block';
         }
     }
+    
+    // --- SISA FUNGSI (TIDAK PERLU DIUBAH) ---
+    // Semua fungsi di bawah ini sudah benar karena mereka memanipulasi variabel 'consoles'
+    // yang sudah kita muat dengan benar di fungsi initialize().
     
     function renderConsoles() {
         consoleList.innerHTML = '';
@@ -409,6 +429,7 @@ document.addEventListener('DOMContentLoaded', () => {
         form.reset();
     });
     
+    // --- FUNGSI BANTU & EVENT LISTENER UMUM ---
     function calculateCost(type, durationMinutes) { return Math.round((PRICES[type] / 60) * durationMinutes); }
     function saveAndRender() { localStorage.setItem('consoles', JSON.stringify(consoles)); renderConsoles(); }
     function findConsole(id) { return consoles.find(c => c.id === id); }
@@ -418,5 +439,6 @@ document.addEventListener('DOMContentLoaded', () => {
     Object.values(modals).forEach(m => { if(m) { const btn = m.querySelector(".close-btn"); if (btn) btn.onclick = () => { m.style.display = "none" } } });
     window.onclick = e => { if (e.target.classList.contains("modal")) { e.target.style.display = "none" } };
 
+    // Memulai seluruh aplikasi dengan memanggil inisialisasi
     initialize();
 });

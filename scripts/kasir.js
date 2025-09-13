@@ -9,7 +9,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Ambil data menu dari localStorage
     const menuItems = JSON.parse(localStorage.getItem('menuItems')) || [];
-    let cashierCart = [];
+    
+    // MODIFIKASI: Inisialisasi keranjang dari localStorage, atau array kosong jika tidak ada
+    let cashierCart = JSON.parse(localStorage.getItem('cashierCart')) || [];
 
     // Fungsi format mata uang
     function formatCurrency(amount) {
@@ -68,6 +70,10 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 cashierCart.push({ ...selectedItem, quantity });
             }
+            
+            // BARIS BARU: Simpan ke localStorage setiap kali menambah item
+            localStorage.setItem('cashierCart', JSON.stringify(cashierCart));
+            
             renderCart();
         }
         form.reset();
@@ -79,6 +85,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target.matches('.btn-delete-order')) {
             const cartIndex = parseInt(e.target.dataset.cartIndex, 10);
             cashierCart.splice(cartIndex, 1);
+            
+            // BARIS BARU: Simpan ke localStorage setiap kali menghapus item
+            localStorage.setItem('cashierCart', JSON.stringify(cashierCart));
+            
             renderCart();
         }
     });
@@ -112,10 +122,14 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Reset Order setelah Histori selesai
         cashierCart = [];
+        
+        // BARIS BARU: Hapus juga dari localStorage setelah checkout berhasil
+        localStorage.removeItem('cashierCart');
+
         renderCart();
     });
 
     // Inisialisasi halaman
     loadMenuItems();
-    renderCart();
+    renderCart(); // <- renderCart di sini akan otomatis menampilkan data dari localStorage
 });

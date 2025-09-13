@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <tr>
                     <td>${consoleAndPackage}</td>
                     <td>Mulai: ${item.startTime}<br>Selesai: ${item.endTime}<br>(${item.durationMinutes} menit)</td>
-                    <td>Sewa: ${formatCurrency(item.rentalCost)}<br>Pesanan: ${formatCurrency(item.orderCost)}<br><strong>Total: ${formatCurrency(item.totalCost)}</strong></td>
+                    <td>Sewa: ${formatCurrency(item.rentalCost)}<br>Pesanan: ${formatCurrency(item.orderCost)}<br><strong class="totalin">Total: ${formatCurrency(item.totalCost)}</strong></td>
                     <td>${ordersList}${notesDisplay}</td>
                     <td><button class="btn-stop btn-delete-history" data-history-index="${item.originalIndex}">Hapus</button></td>
                 </tr>
