@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         localStorage.setItem('consoles', JSON.stringify(newConsoles));
         alert('Pengaturan jumlah PS berhasil disimpan!');
-        window.location.href = '../index.html';
+        window.location.href = './index.html';
     });
 
     resetBtn.addEventListener('click', () => {

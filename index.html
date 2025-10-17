@@ -5,17 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard | Gang-PS</title>
     <link rel="icon" href="/icon.png" type="image/png">
-    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="./style.css">
 </head>
 <body>
     <div class="container">
         <nav>
-            <a href="/index.html" class="active">Dashboard</a>
-            <a href="/pages/manage.html">Kelola PS</a>
-            <a href="/pages/paket.html">Kelola Paket</a>
-            <a href="/pages/history.html">Histori</a>
-            <a href="/pages/menu.html">Menu Pesanan</a>
-            
+            <a href="./index.html" class="active">Dashboard</a>
+            <a href="./manage.html">Kelola PS</a>
+            <a href="./paket.html">Kelola Paket</a>
+            <a href="./history.html">Histori</a>
+            <a href="./menu.html">Menu Pesanan</a>
+            <a href="./members.html">Kartu Play Pass</a>
         </nav>
         <div class="container" style="max-width: 600px; padding: 15px; margin-bottom: 20px; text-align: center; background-color: #e8eaf6;">
             <h2 style="margin-top:0;">Penjualan Langsung</h2>
@@ -26,7 +26,7 @@
             </div>
         <div id="no-consoles-message" style="display:none; text-align:center; padding: 20px;">
             <p>Belum ada konsol yang di-setup.</p>
-            <p>Silakan pergi ke halaman <a href="./pages/manage.html">Kelola PS</a> untuk menambahkan konsol.</p>
+            <p>Silakan pergi ke halaman <a href="../manage.html">Kelola PS</a> untuk menambahkan konsol.</p>
         </div>
     </div>
 
@@ -36,15 +36,23 @@
             <h3 id="modal-title">Mulai Sesi untuk <span id="modal-console-name"></span></h3>
             <form id="start-session-form">
                 <input type="hidden" id="modal-console-id">
+    
+                <div id="member-selection-container" style="display:none;">
+                    <hr>
+                    <div class="form-group">
+                        <label for="member-select">Gunakan Play Pass Member:</label>
+                        <select id="member-select">
+                            <option value="">-- Pilih Member --</option>
+                            </select>
+                    </div>
+                    <p style="text-align: center; margin-top: -10px; font-weight: bold;">ATAU</p>
+                    <hr>
+                </div>
+    
                 <div class="form-group">
-                    <label for="billing-type">Pilih Paket:</label>
+                    <label for="billing-type">Pilih Paket Reguler:</label>
                     <select id="billing-type">
-                        <option value="60">1 Jam</option>
-                        <option value="120">2 Jam</option>
-                        <option value="180">3 Jam</option>
-                        <option value="240">4 Jam</option>
-                        <option value="open">OPEN (Bebas)</option>
-                    </select>
+                        </select>
                 </div>
                 <button type="submit">Mulai</button>
             </form>
@@ -132,7 +140,7 @@
     <footer>
         GANG PS Ponorogo &copy; <span id="copyright-year"></span>2025
     </footer>
-
-    <script src="/scripts/script.js"></script>
+    <audio id="alarm-ends" src="audio.mp3" preload="auto"></audio>
+    <script src="./script.js"></script>
 </body>
 </html>

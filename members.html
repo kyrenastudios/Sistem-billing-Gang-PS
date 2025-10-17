@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kelola Member</title>
+    <link rel="stylesheet" href="../style.css">
+    <link rel="icon" href="/icon.png" type="image/png">
+</head>
+<body>
+    <div class="container">
+        <nav>
+            <a href="./index.html">Dashboard</a>
+            <a href="./manage.html">Kelola PS</a>
+            <a href="./paket.html">Kelola Paket</a>
+            <a href="./history.html">Histori</a>
+            <a href="./menu.html">Menu Pesanan</a>
+            <a href="./members.html" clas="active">Kartu Play Pass</a>
+        </nav>
+
+        <h1>Kelola Member Play Pass</h1>
+
+        <div style="display: flex; gap: 30px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 300px;">
+                <h3>Tambah Member Baru</h3>
+                <form id="member-form">
+                    <div class="form-group">
+                        <label for="member-name">Nama Member</label>
+                        <input type="text" id="member-name" placeholder="Masukkan nama" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="member-ps-type">Pilih Tipe Pass</label>
+                        <select id="member-ps-type" required>
+                            <option value="PS4">PS4 (21x @ 2 Jam) - Rp 300.000</option>
+                            <option value="PS5">PS5 (21x @ 1 Jam) - Rp 350.000</option>
+                        </select>
+                    </div>
+                    <button type="submit">Tambah Member</button>
+                </form>
+            </div>
+
+            <div style="flex: 2; min-width: 400px;">
+                <h3>Daftar Member Aktif</h3>
+                <table id="paket-list-table">
+                    <thead>
+                        <tr>
+                            <th>Nama Member</th>
+                            <th>Tipe Pass</th>
+                            <th>Pemakaian</th>
+                            <th>Sisa</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="member-list-body">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <script src="./member.js"></script>
+</body>
+</html>
