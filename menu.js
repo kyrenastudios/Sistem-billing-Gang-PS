@@ -110,9 +110,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const itemId = e.target.dataset.id;
 
-        if (!confirm('Anda yakin ingin menghapus item ini dari menu?')) {
-            return;
-        }
+        const confirmed = await window.gangPsConfirm(
+            'Anda yakin ingin menghapus item ini dari menu?',
+            'Hapus Menu'
+        );
+        if (!confirmed) return;
 
         try {
             const response = await fetch(`${MENU_API_URL}?id=${encodeURIComponent(itemId)}`, {
