@@ -3,6 +3,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/config.php';
 date_default_timezone_set('Asia/Jakarta');
+$user = requireAuth();
 
 function inputHistory(): array
 {
@@ -54,27 +55,26 @@ try {
         jsonResponse(['success' => false, 'message' => 'Data history tidak valid.'], 400);
     }
 
+    //======== Kasir Tidak Boleh Menghapus Riwayat ========
+    // Sinkronisasi dengan jumlah transaksi lebih sedikit dianggap sebagai penghapusan.
+    if ($user['role'] !== 'admin') {
+        $serverCount = (int) $pdo->query("SELECT COUNT(*) FROM transactions")->fetchColumn();
+        $clientCount = count($data['history']);
+        if ($clientCount < $serverCount) {
+            jsonResponse(['success' => false, 'message' => 'Kasir tidak memiliki izin menghapus riwayat penjualan.'], 403);
+        }
+    }
+
     $pdo->beginTransaction();
     try {
         $consoleIds = [];
-        foreach ($pdo->query("SELECT id, name FROM consoles")->fetchAll() as $row) {
-            $consoleIds[$row['name']] = (int) $row['id'];
-        }
-
+        foreach ($pdo->query("SELECT id, name FROM consoles")->fetchAll() as $row) $consoleIds[$row['name']] = (int) $row['id'];
         $memberIds = [];
-        foreach ($pdo->query("SELECT id, name FROM members")->fetchAll() as $row) {
-            $memberIds[$row['name']] = (int) $row['id'];
-        }
-
+        foreach ($pdo->query("SELECT id, name FROM members")->fetchAll() as $row) $memberIds[$row['name']] = (int) $row['id'];
         $packageIds = [];
-        foreach ($pdo->query("SELECT id, name FROM packages")->fetchAll() as $row) {
-            $packageIds[$row['name']] = (int) $row['id'];
-        }
-
+        foreach ($pdo->query("SELECT id, name FROM packages")->fetchAll() as $row) $packageIds[$row['name']] = (int) $row['id'];
         $menuIds = [];
-        foreach ($pdo->query("SELECT id, name FROM menu_items")->fetchAll() as $row) {
-            $menuIds[$row['name']] = (int) $row['id'];
-        }
+        foreach ($pdo->query("SELECT id, name FROM menu_items")->fetchAll() as $row) $menuIds[$row['name']] = (int) $row['id'];
 
         //======== Rebuild Transactions Only ========
         // Session aktif, paused, dan completed TIDAK dihapus.
@@ -109,11 +109,8 @@ try {
                 $billingType = $memberId ? 'member' : (strtoupper($billing) === 'OPEN' ? 'hourly' : 'package');
                 $packageId = isset($packageIds[$billing]) ? $packageIds[$billing] : null;
                 $ordersJson = json_encode($item['orders'] ?? [], JSON_UNESCAPED_UNICODE);
-
-                // Pakai session completed yang sudah dibuat oleh session-sync jika cocok.
                 $findSession->execute([$consoleId, $start, $end, $duration, $rental]);
                 $sessionId = (int) ($findSession->fetchColumn() ?: 0);
-
                 if ($sessionId) {
                     $updateSession->execute([$memberId, $packageId, $billingType, $notes, $ordersJson, $sessionId]);
                 } else {
@@ -131,11 +128,8 @@ try {
                 $unit = (float) ($order['price'] ?? 0);
                 $qty = max(1, (int) ($order['quantity'] ?? 1));
                 $menuId = null;
-                if (isset($order['id']) && preg_match('/^item-(\d+)$/', (string) $order['id'], $m)) {
-                    $menuId = (int) $m[1];
-                } elseif (isset($menuIds[$name])) {
-                    $menuId = $menuIds[$name];
-                }
+                if (isset($order['id']) && preg_match('/^item-(\d+)$/', (string) $order['id'], $m)) $menuId = (int) $m[1];
+                elseif (isset($menuIds[$name])) $menuId = $menuIds[$name];
                 $insertItem->execute([$transactionId, $menuId, $name, $unit, $qty, $unit * $qty]);
             }
         }
