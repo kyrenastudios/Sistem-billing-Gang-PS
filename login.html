@@ -10,7 +10,7 @@ body.login-page{margin:0;min-height:100vh;display:flex;align-items:center;justif
 .login-brand{text-align:center;font-size:2rem;font-weight:700;color:#19183B;margin-bottom:6px}.login-title{text-align:center;font-size:1.2rem;color:#555966;margin:0 0 26px}
 .login-field{margin-bottom:16px}.login-field label{display:block;margin-bottom:7px;font-weight:600}.login-field input{width:100%;box-sizing:border-box;padding:12px 13px;border:1px solid #d8dbe3;border-radius:9px;font:inherit}.login-field input:focus{outline:none;border-color:#4b56bd;box-shadow:0 0 0 3px rgba(75,86,189,.12)}
 #login-submit{width:100%;margin:8px 0 0;padding:12px;background:#4b56bd;color:#fff;border:0;border-radius:9px;font:600 1rem Poppins,sans-serif;cursor:pointer}#login-submit:disabled{opacity:.6;cursor:not-allowed}
-#login-message{min-height:22px;margin-top:14px;text-align:center;color:#c62828;font-size:.9rem}.login-help{text-align:center;margin-top:18px;color:#777b88;font-size:.8rem;line-height:1.5}
+#login-message{min-height:22px;margin-top:14px;text-align:center;color:#c62828;font-size:.9rem}
 @media(max-width:480px){body.login-page{padding:14px}.login-card{padding:28px 20px;border-radius:14px}}
 </style>
 </head>
@@ -24,7 +24,6 @@ body.login-page{margin:0;min-height:100vh;display:flex;align-items:center;justif
         <button id="login-submit" type="submit">Masuk</button>
         <div id="login-message"></div>
     </form>
-    <div class="login-help">Akun awal Admin: <strong>admin</strong> / <strong>admin123</strong><br>Segera buat akun Kasir dari menu Pengguna.</div>
 </div>
 <script>
 async function readApiResponse(response){
