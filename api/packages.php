@@ -3,55 +3,93 @@
 declare(strict_types=1);
 require_once __DIR__ . '/config.php';
 
-function readJson(): array { $data = json_decode(file_get_contents('php://input') ?: '{}', true); return is_array($data) ? $data : []; }
-function response(array $data, int $status = 200): never { http_response_code($status); header('Content-Type: application/json; charset=utf-8'); echo json_encode($data, JSON_UNESCAPED_UNICODE); exit; }
+function packagesJsonResponse(array $data, int $status = 200) {
+    http_response_code($status);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($data, JSON_UNESCAPED_UNICODE);
+    exit;
+}
 
-function fetchPackages(PDO $pdo): array {
-    $rows = $pdo->query("SELECT id,name,console_type,duration_minutes,price,notes FROM packages ORDER BY console_type ASC,duration_minutes ASC,id ASC")->fetchAll();
-    return array_map(fn($r) => [
-        'id' => 'pkg_' . (int)$r['id'],
-        'name' => $r['name'],
-        'durationMinutes' => (int)$r['duration_minutes'],
-        'price' => (int)$r['price'],
-        'consoleType' => $r['console_type'],
-        'notes' => $r['notes']
-    ], $rows);
+function packagesReadJson(): array {
+    $raw = file_get_contents('php://input');
+    if (!$raw) return [];
+    $data = json_decode($raw, true);
+    return is_array($data) ? $data : [];
+}
+
+function packagesFetch(PDO $pdo): array {
+    $stmt = $pdo->query('SELECT id, name, console_type, duration_minutes, price, notes FROM packages ORDER BY console_type ASC, duration_minutes ASC, id ASC');
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $result = [];
+    foreach ($rows as $row) {
+        $result[] = [
+            'id' => 'pkg_' . (int)$row['id'],
+            'name' => (string)$row['name'],
+            'durationMinutes' => (int)$row['duration_minutes'],
+            'price' => (int)$row['price'],
+            'consoleType' => (string)$row['console_type'],
+            'notes' => $row['notes']
+        ];
+    }
+    return $result;
 }
 
 try {
     $pdo = db();
-    if ($_SERVER['REQUEST_METHOD'] === 'GET') response(['success'=>true,'data'=>fetchPackages($pdo)]);
-    if (!in_array($_SERVER['REQUEST_METHOD'], ['POST','PUT','DELETE'], true)) response(['success'=>false,'message'=>'Method tidak didukung.'],405);
+    $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
-    $data = readJson();
-    if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
-        $id = preg_replace('/^pkg_/', '', (string)($data['id'] ?? $_GET['id'] ?? ''));
-        if (!ctype_digit($id)) response(['success'=>false,'message'=>'ID paket tidak valid.'],400);
-        $stmt=$pdo->prepare('DELETE FROM packages WHERE id=?'); $stmt->execute([(int)$id]);
-        response(['success'=>true]);
+    if ($method === 'OPTIONS') {
+        packagesJsonResponse(['success' => true]);
     }
 
-    $name=trim((string)($data['name'] ?? ''));
-    $type=strtoupper(trim((string)($data['consoleType'] ?? '')));
-    $duration=(int)($data['durationMinutes'] ?? 0);
-    $price=(int)($data['price'] ?? 0);
-    $notes=$data['notes'] ?? null;
-    if ($name==='' || !in_array($type,['PS3','PS4','PS5'],true) || $duration<=0 || $price<0) response(['success'=>false,'message'=>'Data paket tidak valid.'],400);
+    if ($method === 'GET') {
+        packagesJsonResponse(['success' => true, 'data' => packagesFetch($pdo)]);
+    }
 
-    $id=preg_replace('/^pkg_/','',(string)($data['id'] ?? ''));
-    if ($id !== '' && !ctype_digit($id)) response(['success'=>false,'message'=>'ID paket tidak valid.'],400);
+    $data = packagesReadJson();
+
+    if ($method === 'DELETE') {
+        $rawId = (string)($data['id'] ?? $_GET['id'] ?? '');
+        $id = preg_replace('/^pkg_/', '', $rawId);
+        if (!ctype_digit($id)) packagesJsonResponse(['success'=>false,'message'=>'ID paket tidak valid.'],400);
+        $stmt = $pdo->prepare('DELETE FROM packages WHERE id = ?');
+        $stmt->execute([(int)$id]);
+        packagesJsonResponse(['success'=>true,'data'=>packagesFetch($pdo)]);
+    }
+
+    if ($method !== 'POST' && $method !== 'PUT') {
+        packagesJsonResponse(['success'=>false,'message'=>'Method tidak didukung.'],405);
+    }
+
+    $name = trim((string)($data['name'] ?? ''));
+    $type = strtoupper(trim((string)($data['consoleType'] ?? '')));
+    $duration = (int)($data['durationMinutes'] ?? 0);
+    $price = (int)($data['price'] ?? 0);
+    $notes = array_key_exists('notes', $data) ? $data['notes'] : null;
+
+    if ($name === '' || !in_array($type, ['PS3','PS4','PS5'], true) || $duration <= 0 || $price < 0) {
+        packagesJsonResponse(['success'=>false,'message'=>'Data paket tidak valid.'],400);
+    }
+
+    $rawId = (string)($data['id'] ?? '');
+    $id = preg_replace('/^pkg_/', '', $rawId);
+    if ($id !== '' && !ctype_digit($id)) packagesJsonResponse(['success'=>false,'message'=>'ID paket tidak valid.'],400);
 
     if ($id !== '') {
-        $stmt=$pdo->prepare('UPDATE packages SET name=?,console_type=?,duration_minutes=?,price=?,notes=?,updated_at=CURRENT_TIMESTAMP WHERE id=?');
-        $stmt->execute([$name,$type,$duration,$price,$notes,(int)$id]);
+        $stmt = $pdo->prepare('UPDATE packages SET name = ?, console_type = ?, duration_minutes = ?, price = ?, notes = ? WHERE id = ?');
+        $stmt->execute([$name, $type, $duration, $price, $notes, (int)$id]);
     } else {
-        $stmt=$pdo->prepare('INSERT INTO packages (name,console_type,duration_minutes,price,notes) VALUES (?,?,?,?,?)');
-        $stmt->execute([$name,$type,$duration,$price,$notes]);
+        $stmt = $pdo->prepare('INSERT INTO packages (name, console_type, duration_minutes, price, notes) VALUES (?, ?, ?, ?, ?)');
+        $stmt->execute([$name, $type, $duration, $price, $notes]);
     }
-    response(['success'=>true,'data'=>fetchPackages($pdo)]);
+
+    packagesJsonResponse(['success'=>true,'data'=>packagesFetch($pdo)]);
 } catch (PDOException $e) {
-    if ((int)$e->errorInfo[1] === 1062) response(['success'=>false,'message'=>'Nama paket untuk tipe PS tersebut sudah ada.'],409);
-    response(['success'=>false,'message'=>'Database paket gagal diproses.','error'=>$e->getMessage()],500);
+    $mysqlCode = isset($e->errorInfo[1]) ? (int)$e->errorInfo[1] : 0;
+    if ($mysqlCode === 1062) {
+        packagesJsonResponse(['success'=>false,'message'=>'Nama paket untuk tipe PS tersebut sudah ada.'],409);
+    }
+    packagesJsonResponse(['success'=>false,'message'=>'Database paket gagal diproses.','error'=>$e->getMessage()],500);
 } catch (Throwable $e) {
-    response(['success'=>false,'message'=>$e->getMessage()],500);
+    packagesJsonResponse(['success'=>false,'message'=>'Paket gagal diproses.','error'=>$e->getMessage()],500);
 }
