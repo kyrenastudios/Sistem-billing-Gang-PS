@@ -33,10 +33,12 @@ document.addEventListener('DOMContentLoaded', () => {
         { href:'./menu.html', label:'Menu Pesanan', icon:'☷', match:'menu.html' },
         { href:'./members.html', label:'Kartu Play Pass', icon:'▭', match:'members.html' },
         { href:'./paket.html', label:'Kelola Paket', icon:'◇', match:'paket.html' },
-        { href:'./manage.html', label:'Kelola PS', icon:'▤', match:'manage.html' },
-        { href:'./sales.html', label:'Laporan Penjualan', icon:'▥', match:'sales.html' }
+        { href:'./manage.html', label:'Kelola PS', icon:'▤', match:'manage.html' }
     ];
-    if (user && user.role === 'admin') items.push({ href:'./users.html', label:'Pengguna', icon:'♙', match:'users.html' });
+    if (user && user.role === 'admin') {
+        items.push({ href:'./sales.html', label:'Laporan Penjualan', icon:'▥', match:'sales.html' });
+        items.push({ href:'./users.html', label:'Pengguna', icon:'♙', match:'users.html' });
+    }
 
     const currentPage = window.location.pathname.split('/').pop() || 'index.html';
     nav.innerHTML = `<button type="button" id="gang-ps-sidebar-toggle" aria-label="Minimize navigasi" title="Minimize navigasi"><span class="gang-ps-toggle-icon">‹</span><span class="gang-ps-toggle-text">Minimize</span></button>`
