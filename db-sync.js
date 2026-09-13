@@ -35,16 +35,24 @@
         return data;
     }
 
+    function applyArrayIfSafe(key, value) {
+        if (!Array.isArray(value)) return;
+        const local = readArray(key);
+        //======== Jangan hapus data lokal dengan hasil DB kosong ========
+        if (value.length === 0 && local && local.length > 0) return;
+        originalSetItem.call(storage, key, JSON.stringify(value));
+    }
+
     function applyDatabaseState(result) {
         if (!result || !result.success || !result.data) return;
         applyingDatabase = true;
         try {
             const data = result.data;
-            if (Array.isArray(data.consoles)) originalSetItem.call(storage, 'consoles', JSON.stringify(data.consoles));
-            if (Array.isArray(data.members)) originalSetItem.call(storage, 'members', JSON.stringify(data.members));
-            if (Array.isArray(data.customPackages)) originalSetItem.call(storage, 'customPackages', JSON.stringify(data.customPackages));
-            if (Array.isArray(data.history)) originalSetItem.call(storage, 'history', JSON.stringify(data.history));
-            if (Array.isArray(data.menuItems)) originalSetItem.call(storage, MENU_KEY, JSON.stringify(data.menuItems));
+            applyArrayIfSafe('consoles', data.consoles);
+            applyArrayIfSafe('members', data.members);
+            applyArrayIfSafe('customPackages', data.customPackages);
+            applyArrayIfSafe('history', data.history);
+            applyArrayIfSafe(MENU_KEY, data.menuItems);
         } finally {
             applyingDatabase = false;
         }
@@ -67,7 +75,7 @@
     async function postSnapshot(snapshot) {
         if (syncInProgress) {
             syncQueued = true;
-            return;
+            return false;
         }
         syncInProgress = true;
         try {
@@ -77,10 +85,12 @@
                 body: JSON.stringify(snapshot)
             });
             const result = await response.json();
-            if (!response.ok || !result.success) throw new Error(result.message || `HTTP ${response.status}`);
+            if (!response.ok || !result.success) throw new Error(result.error || result.message || `HTTP ${response.status}`);
             applyDatabaseState(result);
+            return true;
         } catch (error) {
-            console.warn('DB Sync: gagal menulis ke MySQL.', error);
+            console.error('DB Sync: gagal menulis ke MySQL:', error);
+            return false;
         } finally {
             syncInProgress = false;
             if (syncQueued) {
@@ -113,7 +123,7 @@
                     const result = JSON.parse(xhr.responseText);
                     applyDatabaseState(result);
                 } else {
-                    console.warn('DB Sync: migrasi awal gagal HTTP', xhr.status);
+                    console.warn('DB Sync: migrasi awal gagal HTTP', xhr.status, xhr.responseText);
                 }
             } catch (error) {
                 console.warn('DB Sync: migrasi awal gagal.', error);
