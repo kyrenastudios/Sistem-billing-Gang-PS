@@ -9,38 +9,39 @@ date_default_timezone_set('Asia/Jakarta');
 function inputData(): array
 {
     $raw = file_get_contents('php://input');
-    if (!$raw) {
-        return [];
-    }
-
+    if (!$raw) return [];
     $data = json_decode($raw, true);
     return is_array($data) ? $data : [];
 }
 
 function dtFromMs($ms): ?string
 {
-    if (!is_numeric($ms)) {
-        return null;
-    }
+    if (!is_numeric($ms)) return null;
     return date('Y-m-d H:i:s', (int) floor(((float) $ms) / 1000));
 }
 
 function normalizeTime(?string $time): ?string
 {
-    if (!$time) {
-        return null;
-    }
+    if (!$time) return null;
     return str_replace('.', ':', trim($time));
 }
 
 function dtFromHistory(?string $date, ?string $time): ?string
 {
-    if (!$date) {
-        return null;
-    }
+    if (!$date) return null;
     $time = normalizeTime($time) ?: '00:00:00';
     $ts = strtotime($date . ' ' . $time);
     return $ts === false ? null : date('Y-m-d H:i:s', $ts);
+}
+
+function dtFromAny($value): string
+{
+    if (is_numeric($value)) return dtFromMs($value) ?: date('Y-m-d H:i:s');
+    if (is_string($value) && trim($value) !== '') {
+        $ts = strtotime($value);
+        if ($ts !== false) return date('Y-m-d H:i:s', $ts);
+    }
+    return date('Y-m-d H:i:s');
 }
 
 function consoleDbStatus(string $status): string
@@ -59,7 +60,7 @@ function consoleWebStatus(string $status): string
     return match ($status) {
         'playing' => 'in-use',
         'paused' => 'paused',
-        default => $status === 'offline' ? 'available' : 'available',
+        default => 'available',
     };
 }
 
@@ -75,15 +76,9 @@ function transactionType(array $item): string
 function memberNameFromHistory(array $item): ?string
 {
     $billing = (string) ($item['billingInfo'] ?? '');
-    if (str_starts_with($billing, 'Member Pass: ')) {
-        return trim(substr($billing, 13));
-    }
-    if (str_starts_with($billing, 'Play Pass - ')) {
-        return trim(substr($billing, 12));
-    }
-    if (str_starts_with($billing, 'Perpanjangan Pass - ')) {
-        return trim(substr($billing, 20));
-    }
+    if (str_starts_with($billing, 'Member Pass: ')) return trim(substr($billing, 13));
+    if (str_starts_with($billing, 'Play Pass - ')) return trim(substr($billing, 12));
+    if (str_starts_with($billing, 'Perpanjangan Pass - ')) return trim(substr($billing, 20));
     return null;
 }
 
@@ -127,12 +122,9 @@ function fetchState(PDO $pdo): array
         $billingType = $row['billing_type'];
         $type = $billingType === 'hourly' ? 'open' : 'paket';
         $billingInfo = 'OPEN';
-        if ($billingType === 'member' && $row['member_name']) {
-            $billingInfo = 'Member Pass: ' . $row['member_name'];
-        } elseif ($row['package_name']) {
-            $billingInfo = $row['package_name'];
-        }
-        $session = [
+        if ($billingType === 'member' && $row['member_name']) $billingInfo = 'Member Pass: ' . $row['member_name'];
+        elseif ($row['package_name']) $billingInfo = $row['package_name'];
+        $activeByConsole[(int) $row['console_id']] = [
             'type' => $type,
             'startTime' => strtotime($row['start_time']) * 1000,
             'endTime' => $row['end_time'] ? strtotime($row['end_time']) * 1000 : null,
@@ -144,7 +136,6 @@ function fetchState(PDO $pdo): array
             'billingInfo' => $billingInfo,
             'soundPlayed' => false,
         ];
-        $activeByConsole[(int) $row['console_id']] = $session;
     }
 
     $consoleRows = $pdo->query("SELECT * FROM consoles WHERE status <> 'offline' ORDER BY sort_order ASC, id ASC")->fetchAll();
@@ -209,25 +200,16 @@ function fetchState(PDO $pdo): array
         ];
     }
 
-    return [
-        'success' => true,
-        'data' => [
-            'consoles' => $consoles,
-            'members' => $members,
-            'customPackages' => $packages,
-            'menuItems' => $menu,
-            'history' => $history,
-        ],
-    ];
+    return ['success' => true, 'data' => ['consoles' => $consoles, 'members' => $members, 'customPackages' => $packages, 'menuItems' => $menu, 'history' => $history]];
 }
 
 function syncState(PDO $pdo, array $data): void
 {
-    //======== Pastikan penyimpanan order aktif tersedia ========
+    //======== Pastikan kolom pesanan sesi tersedia ========
     try {
         $pdo->exec("ALTER TABLE sessions ADD COLUMN orders_json LONGTEXT NULL");
     } catch (PDOException $e) {
-        // Kolom sudah ada, lanjutkan.
+        // Sudah ada.
     }
 
     $pdo->beginTransaction();
@@ -236,7 +218,6 @@ function syncState(PDO $pdo, array $data): void
         if (array_key_exists('consoles', $data) && is_array($data['consoles'])) {
             $incomingNames = [];
             $upsert = $pdo->prepare("INSERT INTO consoles (name, console_type, status, hourly_price, tv_size, sort_order) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE console_type=VALUES(console_type), status=VALUES(status), hourly_price=VALUES(hourly_price), tv_size=VALUES(tv_size), sort_order=VALUES(sort_order), updated_at=CURRENT_TIMESTAMP");
-            $find = $pdo->prepare("SELECT id FROM consoles WHERE name = ? LIMIT 1");
             foreach ($data['consoles'] as $index => $console) {
                 $name = trim((string) ($console['name'] ?? ''));
                 $type = (string) ($console['type'] ?? 'PS3');
@@ -246,11 +227,9 @@ function syncState(PDO $pdo, array $data): void
                 $upsert->execute([$name, $type, consoleDbStatus((string) ($console['status'] ?? 'available')), $price, $tv, $index + 1]);
                 $incomingNames[$name] = true;
             }
-            $rows = $pdo->query("SELECT id, name, status FROM consoles")->fetchAll();
+            $rows = $pdo->query("SELECT id, name FROM consoles")->fetchAll();
             $markOffline = $pdo->prepare("UPDATE consoles SET status='offline', updated_at=CURRENT_TIMESTAMP WHERE id=? AND status NOT IN ('playing','paused')");
-            foreach ($rows as $row) {
-                if (!isset($incomingNames[$row['name']])) $markOffline->execute([(int) $row['id']]);
-            }
+            foreach ($rows as $row) if (!isset($incomingNames[$row['name']])) $markOffline->execute([(int) $row['id']]);
         }
 
         //======== Members ========
@@ -260,7 +239,7 @@ function syncState(PDO $pdo, array $data): void
             foreach ($data['members'] as $member) {
                 $name = trim((string) ($member['name'] ?? ''));
                 if ($name === '') continue;
-                $creation = $member['creationDate'] ?? date('Y-m-d H:i:s');
+                $creation = dtFromAny($member['creationDate'] ?? null);
                 $upsert->execute([$name, max(0, (int) ($member['totalPasses'] ?? 21)), max(0, (int) ($member['timesUsed'] ?? 0)), $creation]);
                 $incoming[$name] = true;
             }
@@ -289,7 +268,7 @@ function syncState(PDO $pdo, array $data): void
             }
         }
 
-        //======== Riwayat + Sessions + Transactions ========
+        //======== Histori menjadi Transactions + Transaction Items ========
         if (array_key_exists('history', $data) && is_array($data['history'])) {
             $pdo->exec("DELETE FROM transaction_items");
             $pdo->exec("DELETE FROM transactions");
@@ -348,7 +327,7 @@ function syncState(PDO $pdo, array $data): void
             }
         }
 
-        //======== Sesi aktif dari consoles ========
+        //======== Sesi aktif dari Dashboard ========
         if (array_key_exists('consoles', $data) && is_array($data['consoles'])) {
             $consoleIds = [];
             foreach ($pdo->query("SELECT id, name FROM consoles")->fetchAll() as $row) $consoleIds[$row['name']] = (int) $row['id'];
@@ -378,16 +357,14 @@ function syncState(PDO $pdo, array $data): void
 
         $pdo->commit();
     } catch (Throwable $e) {
-        $pdo->rollBack();
+        if ($pdo->inTransaction()) $pdo->rollBack();
         throw $e;
     }
 }
 
 try {
     $pdo = db();
-    if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-        jsonResponse(fetchState($pdo));
-    }
+    if ($_SERVER['REQUEST_METHOD'] === 'GET') jsonResponse(fetchState($pdo));
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $data = inputData();
         syncState($pdo, $data);
@@ -395,9 +372,5 @@ try {
     }
     jsonResponse(['success' => false, 'message' => 'Method tidak didukung.'], 405);
 } catch (Throwable $e) {
-    jsonResponse([
-        'success' => false,
-        'message' => 'Sinkronisasi database gagal.',
-        'error' => $e->getMessage(),
-    ], 500);
+    jsonResponse(['success' => false, 'message' => 'Sinkronisasi database gagal.', 'error' => $e->getMessage()], 500);
 }
