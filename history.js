@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const recapEndDateEl = document.getElementById('recap-end-date');
     const printBtn = document.getElementById('print-btn');
     const exportBtn = document.getElementById('export-btn');
+    const isAdmin = window.gangPsUser && window.gangPsUser.role === 'admin';
 
     //======== Format Rupiah ========
     function formatCurrency(amount) {
@@ -36,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let dailyRentalTotal = 0;
         let dailySalesTotal = 0;
 
-        dailyTransactions.forEach(item => {
+        dailyTransactions.forEach((item, displayIndex) => {
             dailyTotal += Number(item.totalCost) || 0;
             dailyRentalTotal += Number(item.rentalCost) || 0;
             dailySalesTotal += Number(item.orderCost) || 0;
@@ -46,14 +47,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? `<ul>${item.orders.map(o => `<li>${o.name} x ${o.quantity} (${formatCurrency((Number(o.price) || 0) * (Number(o.quantity) || 0))})</li>`).join('')}</ul>`
                 : '<em>Tidak ada pesanan</em>';
             const notesDisplay = item.notes ? `<p><strong>Catatan:</strong> ${item.notes}</p>` : '';
+            const actionDisplay = isAdmin
+                ? `<button type="button" class="btn-stop btn-delete-history" data-history-index="${item.originalIndex}">Hapus</button>`
+                : '<span style="color:#8a8d98;font-size:.85em;">Kasir</span>';
 
             const row = document.createElement('tr');
             row.innerHTML = `
+                <td>${displayIndex + 1}</td>
                 <td>${consoleAndPackage}</td>
                 <td>Mulai: ${item.startTime || '-'}<br>Selesai: ${item.endTime || '-'}<br>(${Number(item.durationMinutes) || 0} menit)</td>
                 <td>Sewa: ${formatCurrency(item.rentalCost)}<br>Pesanan: ${formatCurrency(item.orderCost)}<br><strong>Total: ${formatCurrency(item.totalCost)}</strong></td>
                 <td>${ordersList}${notesDisplay}</td>
-                <td><button type="button" class="btn-stop btn-delete-history" data-history-index="${item.originalIndex}">Hapus</button></td>
+                <td>${actionDisplay}</td>
             `;
             historyBody.appendChild(row);
         });
@@ -71,21 +76,18 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Rentang tanggal tidak valid.');
             return;
         }
-
         const allHistory = JSON.parse(localStorage.getItem('history')) || [];
         const filteredHistory = allHistory.filter(item => item.date >= startDate && item.date <= endDate);
         if (filteredHistory.length === 0) {
             recapResultsEl.innerHTML = '<p>Tidak ada transaksi pada rentang tanggal yang dipilih.</p>';
             return;
         }
-
         let totalRental = 0, totalSales = 0, grandTotal = 0;
         filteredHistory.forEach(item => {
             totalRental += Number(item.rentalCost) || 0;
             totalSales += Number(item.orderCost) || 0;
             grandTotal += Number(item.totalCost) || 0;
         });
-
         recapResultsEl.innerHTML = `
             <div style="text-align:center;margin-bottom:15px;"><strong>Rekap dari ${startDate} sampai ${endDate}</strong></div>
             <div style="font-size:1.2em;line-height:1.8;">
@@ -103,20 +105,13 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Tidak ada data histori untuk diexport.');
             return;
         }
-
         const headers = ['Tanggal', 'Nama Konsol', 'Tipe Billing', 'Waktu Mulai', 'Waktu Selesai', 'Durasi (Menit)', 'Biaya Sewa', 'Biaya Pesanan', 'Total Biaya', 'Detail Pesanan', 'Catatan'];
         let csvContent = headers.join(',') + '\n';
         allHistory.forEach(item => {
             const ordersString = (item.orders || []).map(o => `${o.name} x ${o.quantity}`).join('; ');
-            const row = [
-                item.date, item.consoleName, item.billingInfo || '', item.startTime, item.endTime,
-                item.durationMinutes, item.rentalCost, item.orderCost, item.totalCost,
-                `"${ordersString.replace(/"/g, '""')}"`,
-                `"${(item.notes || '').replace(/"/g, '""')}"`
-            ];
+            const row = [item.date, item.consoleName, item.billingInfo || '', item.startTime, item.endTime, item.durationMinutes, item.rentalCost, item.orderCost, item.totalCost, `"${ordersString.replace(/"/g, '""')}"`, `"${(item.notes || '').replace(/"/g, '""')}"`];
             csvContent += row.join(',') + '\n';
         });
-
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
@@ -129,38 +124,28 @@ document.addEventListener('DOMContentLoaded', () => {
         URL.revokeObjectURL(url);
     }
 
-    //======== Hapus History ========
+    //======== Hapus History Admin ========
     document.addEventListener('click', event => {
         const button = event.target.closest('.btn-delete-history');
-        if (!button) return;
-
+        if (!button || !isAdmin) return;
         const indexToDelete = Number(button.dataset.historyIndex);
         if (!Number.isInteger(indexToDelete) || indexToDelete < 0) return;
-
         const allHistory = JSON.parse(localStorage.getItem('history')) || [];
         if (!allHistory[indexToDelete]) return;
 
         window.gangPsConfirm('Anda yakin ingin menghapus transaksi ini secara permanen?', 'Hapus Transaksi').then(confirmed => {
             if (!confirmed) return;
-
-            //======== Hapus Lokal ========
             const latestHistory = JSON.parse(localStorage.getItem('history')) || [];
             if (!latestHistory[indexToDelete]) return;
             latestHistory.splice(indexToDelete, 1);
             localStorage.setItem('history', JSON.stringify(latestHistory));
             renderHistory(dateInput.value);
-
-            //======== Sinkronisasi Setelah Render ========
             setTimeout(() => {
                 if (window.gangPsDbSync && typeof window.gangPsDbSync.push === 'function') {
-                    window.gangPsDbSync.push().catch(error => {
-                        console.error('DB Sync: gagal setelah hapus history:', error);
-                    });
+                    window.gangPsDbSync.push().catch(error => console.error('DB Sync: gagal setelah hapus history:', error));
                 }
             }, 50);
-        }).catch(error => {
-            console.error('Dialog konfirmasi gagal:', error);
-        });
+        }).catch(error => console.error('Dialog konfirmasi gagal:', error));
     });
 
     //======== Tombol Rekap ========
@@ -173,7 +158,6 @@ document.addEventListener('DOMContentLoaded', () => {
             recapModal.style.display = 'block';
         });
     }
-
     if (generateRecapBtn) generateRecapBtn.addEventListener('click', generateRecap);
     if (printBtn) printBtn.addEventListener('click', () => window.print());
     if (exportBtn) exportBtn.addEventListener('click', exportToCsv);
@@ -183,7 +167,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const closeBtn = recapModal.querySelector('.close-btn');
         if (closeBtn) closeBtn.onclick = () => { recapModal.style.display = 'none'; };
     }
-
     window.onclick = event => {
         if (event.target.classList.contains('modal')) event.target.style.display = 'none';
     };
