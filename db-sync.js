@@ -104,8 +104,8 @@
     }
 
     async function postHistorySnapshot(history) {
-        // Jangan mengirim history kosong agar database tidak terhapus karena cache lokal kosong.
-        if (!Array.isArray(history) || history.length === 0) return true;
+        // History kosong tetap dikirim agar transaksi di MySQL ikut terhapus setelah user menghapus semuanya.
+        if (!Array.isArray(history)) return true;
         try {
             await postJson(HISTORY_SYNC_URL, { history });
             return true;
