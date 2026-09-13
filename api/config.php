@@ -8,6 +8,14 @@ const DB_USER = 'root';
 const DB_PASS = '';
 const DB_CHARSET = 'utf8mb4';
 
+//======== PHP Compatibility ========
+if (!function_exists('str_starts_with')) {
+    function str_starts_with(string $haystack, string $needle): bool
+    {
+        return $needle === '' || strpos($haystack, $needle) === 0;
+    }
+}
+
 function db(): PDO
 {
     static $pdo = null;
@@ -25,8 +33,6 @@ function db(): PDO
     ]);
 
     //======== Database Compatibility ========
-    // Struktur awal tidak memiliki unique key pada beberapa master data.
-    // Key ini diperlukan agar sinkronisasi bersifat UPSERT dan tidak membuat duplikat.
     try { $pdo->exec("ALTER TABLE consoles ADD UNIQUE KEY uq_consoles_name (name)"); } catch (PDOException $e) {}
     try { $pdo->exec("ALTER TABLE members ADD UNIQUE KEY uq_members_name (name)"); } catch (PDOException $e) {}
     try { $pdo->exec("ALTER TABLE packages ADD UNIQUE KEY uq_packages_name_type (name, console_type)"); } catch (PDOException $e) {}
