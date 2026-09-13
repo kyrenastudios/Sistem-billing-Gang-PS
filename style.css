@@ -113,3 +113,14 @@ body.billing-page footer { color: #6b7080; border-top-color: #e3e5ea; }
 body.billing-page .container > .container { background: #fafbfc !important; border: 1px solid #e7e9ee; box-shadow: none; }
 body.billing-page .status.available { color: #2e7d32; }
 body.billing-page .status.in-use { color: #c62828; }
+
+/*======== History - Natural Light ========*/
+body.history-page { background: #f5f6f8; color: #252525; }
+body.history-page > .container { background: #ffffff; box-shadow: 0 3px 18px rgba(30, 35, 50, 0.08); }
+body.history-page h1 { color: #24273a; }
+body.history-page #history-controls { color: #4d4f5b; }
+body.history-page #history-table { background: #ffffff; }
+body.history-page #history-table th { background: #f8f8fb; color: #555766; }
+body.history-page #history-table td { color: #393847; }
+body.history-page #daily-summary-container { background: #ffffff; border-color: #e7e9ee; }
+body.history-page footer { color: #000000; border-top-color: #e3e5ea; }
