@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="id">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Billing | Gang-PS</title><link rel="icon" href="/icon.png" type="image/png"><link rel="stylesheet" href="./style.css"></head>
-<body>
+<body class="billing-page">
 <div class="container">
-<nav><a href="./index.html" class="active">Dashboard</a><a href="./manage.html">Kelola PS</a><a href="./paket.html">Kelola Paket</a><a href="./history.html">Histori</a><a href="./menu.html">Menu Pesanan</a><a href="./sales.html">Laporan Penjualan</a><a href="./members.html">Kartu Play Pass</a></nav>
+<nav></nav>
 <div class="container" style="max-width:600px;padding:15px;margin-bottom:20px;text-align:center;background-color:#e8eaf6;"><h2 style="margin-top:0;">Penjualan Langsung</h2><button id="open-cashier-btn" style="padding:12px 20px;font-size:1.1em;">Buka Kasir</button></div>
 <h1>GANG PS</h1><div id="console-list"></div><div id="no-consoles-message" style="display:none;text-align:center;padding:20px;"><p>Belum ada konsol yang di-setup.</p><p>Silakan pergi ke halaman <a href="../manage.html">Kelola PS</a> untuk menambahkan konsol.</p></div></div>
 <div id="start-session-modal" class="modal"><div class="modal-content"><span class="close-btn">&times;</span><h3 id="modal-title">Mulai Sesi untuk <span id="modal-console-name"></span></h3><form id="start-session-form"><input type="hidden" id="modal-console-id"><div id="member-selection-container" style="display:none;"><hr><div class="form-group"><label for="member-select">Gunakan Play Pass Member:</label><select id="member-select"><option value="">-- Pilih Member --</option></select></div><p style="text-align:center;margin-top:-10px;font-weight:bold;">ATAU</p><hr></div><div class="form-group"><label for="billing-type">Pilih Paket Reguler:</label><select id="billing-type"></select></div><button type="submit">Mulai</button></form></div></div>
