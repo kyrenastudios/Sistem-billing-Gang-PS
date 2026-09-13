@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const style = document.createElement('style');
         style.id = 'gang-ps-sidebar-style';
         style.textContent = `
-            body { padding: 20px; }
+            body { padding: 20px; padding-bottom: 90px; }
             nav {
                 position: fixed !important;
                 left: 8px !important;
@@ -77,13 +77,26 @@ document.addEventListener('DOMContentLoaded', () => {
             body > .container {
                 max-width: none !important;
                 margin: 20px 20px 20px 228px !important;
-                min-height: calc(100vh - 40px);
+                min-height: calc(100vh - 110px);
                 box-sizing: border-box;
             }
-            body > footer { margin-left: 228px !important; }
-            body.billing-page { background: #f5f6f8 !important; }
-            body.billing-page > .container { background: #ffffff !important; }
+            body > footer {
+                position: fixed !important;
+                left: 228px !important;
+                right: 20px !important;
+                bottom: 0 !important;
+                width: auto !important;
+                box-sizing: border-box !important;
+                margin: 0 !important;
+                padding: 14px 20px !important;
+                z-index: 800 !important;
+                background: #f5f6f8 !important;
+                border-top: 1px solid #e0e3e8 !important;
+                text-align: center !important;
+            }
+            body > footer #copyright-year { display: inline; }
             @media (max-width: 700px) {
+                body { padding: 10px; padding-bottom: 80px; }
                 nav {
                     position: relative !important;
                     left: auto !important;
@@ -96,12 +109,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 nav::before { padding: 4px 10px 10px; font-size: 22px; }
                 body > .container { margin: 10px !important; min-height: auto; }
-                body > footer { margin-left: 0 !important; }
+                body > footer {
+                    left: 10px !important;
+                    right: 10px !important;
+                    padding: 12px 10px !important;
+                }
             }
         `;
         document.head.appendChild(style);
     }
 
+    //======== Tahun Lokal PC ========
     const footer = document.querySelector('footer');
-    if (footer) footer.style.marginLeft = '228px';
+    if (footer) {
+        const yearEl = footer.querySelector('#copyright-year');
+        if (yearEl) yearEl.textContent = new Date().getFullYear();
+    }
 });
