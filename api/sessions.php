@@ -36,7 +36,9 @@ try {
 
             $billing=(string)($s['billingInfo']??'OPEN');
             $memberId=null;
-            if(str_starts_with($billing,'Member Pass: ')){ $findMember->execute([trim(substr($billing,13))]); $memberId=(int)($findMember->fetchColumn()?:0) ?: null; }
+            //======== Member Billing Detection ========
+            // Hindari str_starts_with() agar endpoint tetap kompatibel dengan PHP yang tidak menyediakan fungsi tersebut.
+            if(strpos($billing,'Member Pass: ') === 0){ $findMember->execute([trim(substr($billing,13))]); $memberId=(int)($findMember->fetchColumn()?:0) ?: null; }
             $packageId=null;
             if($billing!=='OPEN'){ $findPackage->execute([$billing]); $packageId=(int)($findPackage->fetchColumn()?:0) ?: null; }
             $billingType=$memberId?'member':($billing==='OPEN'?'hourly':'package');
