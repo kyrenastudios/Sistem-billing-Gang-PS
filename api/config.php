@@ -2,6 +2,12 @@
 //======== Database Config ========
 declare(strict_types=1);
 
+//======== API Output Buffer ========
+// Menahan warning PHP agar response API tetap JSON valid.
+if (ob_get_level() === 0) {
+    ob_start();
+}
+
 const DB_HOST = '127.0.0.1';
 const DB_NAME = 'gang_ps';
 const DB_USER = 'root';
@@ -109,6 +115,11 @@ function requireAdmin(): array
 
 function jsonResponse(array $data, int $status = 200): never
 {
+    //======== Clean API Buffer ========
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode($data, JSON_UNESCAPED_UNICODE);
