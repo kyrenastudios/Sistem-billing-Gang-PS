@@ -27,8 +27,16 @@ body.login-page{margin:0;min-height:100vh;display:flex;align-items:center;justif
     <div class="login-help">Akun awal Admin: <strong>admin</strong> / <strong>admin123</strong><br>Segera buat akun Kasir dari menu Pengguna.</div>
 </div>
 <script>
-(async()=>{try{const r=await fetch('./api/auth.php?action=me');const d=await r.json();if(d.authenticated)window.location.replace('./index.html')}catch(e){}})();
+async function readApiResponse(response){
+    const text=await response.text();
+    try{return JSON.parse(text)}catch(e){
+        const clean=text.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
+        throw new Error(clean ? `Server API mengembalikan response tidak valid: ${clean.slice(0,240)}` : 'Server API tidak mengembalikan response.');
+    }
+}
+
+(async()=>{try{const r=await fetch('./api/auth.php?action=me');const d=await readApiResponse(r);if(d.authenticated)window.location.replace('./index.html')}catch(e){}})();
 const form=document.getElementById('login-form'),btn=document.getElementById('login-submit'),msg=document.getElementById('login-message');
-form.addEventListener('submit',async e=>{e.preventDefault();btn.disabled=true;msg.textContent='Memproses...';try{const r=await fetch('./api/auth.php?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:document.getElementById('username').value.trim(),password:document.getElementById('password').value})});const d=await r.json();if(!r.ok||!d.success)throw new Error(d.message||'Login gagal.');window.location.replace('./index.html')}catch(err){msg.textContent=err.message;btn.disabled=false}});
+form.addEventListener('submit',async e=>{e.preventDefault();btn.disabled=true;msg.textContent='Memproses...';try{const r=await fetch('./api/auth.php?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:document.getElementById('username').value.trim(),password:document.getElementById('password').value})});const d=await readApiResponse(r);if(!r.ok||!d.success)throw new Error(d.message||'Login gagal.');window.location.replace('./index.html')}catch(err){msg.textContent=err.message;btn.disabled=false}});
 </script>
 </body></html>
