@@ -172,6 +172,11 @@ body.billing-page .console-card .order-item {
     font-size: .8em;
 }
 
+/*======== Hide Active Status Text ========*/
+body.billing-page .console-card .status.in-use {
+    display: none !important;
+}
+
 @media (max-width: 760px) {
     body.billing-page .console-card {
         min-height: 245px;
