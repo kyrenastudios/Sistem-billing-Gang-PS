@@ -130,9 +130,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     //======== Hapus History ========
-    historyBody.addEventListener('click', async (event) => {
+    document.addEventListener('click', event => {
         const button = event.target.closest('.btn-delete-history');
-        if (!button || !historyBody.contains(button)) return;
+        if (!button) return;
 
         const indexToDelete = Number(button.dataset.historyIndex);
         if (!Number.isInteger(indexToDelete) || indexToDelete < 0) return;
@@ -141,16 +141,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!allHistory[indexToDelete]) return;
         if (!confirm('Anda yakin ingin menghapus transaksi ini secara permanen?')) return;
 
-        button.disabled = true;
-        button.textContent = 'Menghapus...';
-
+        //======== Hapus Lokal ========
         allHistory.splice(indexToDelete, 1);
         localStorage.setItem('history', JSON.stringify(allHistory));
         renderHistory(dateInput.value);
 
-        if (window.gangPsDbSync && typeof window.gangPsDbSync.push === 'function') {
-            await window.gangPsDbSync.push();
-        }
+        //======== Sinkronisasi Setelah Render ========
+        setTimeout(() => {
+            if (window.gangPsDbSync && typeof window.gangPsDbSync.push === 'function') {
+                window.gangPsDbSync.push().catch(error => {
+                    console.error('DB Sync: gagal setelah hapus history:', error);
+                });
+            }
+        }, 50);
     });
 
     //======== Tombol Rekap ========
