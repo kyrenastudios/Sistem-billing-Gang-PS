@@ -114,6 +114,70 @@ body.billing-page .container > .container { background: #fafbfc !important; bord
 body.billing-page .status.available { color: #2e7d32; }
 body.billing-page .status.in-use { color: #c62828; }
 
+/*======== Billing - Compact Console Cards ========*/
+body.billing-page .console-card {
+    box-sizing: border-box;
+    height: 245px;
+    min-height: 245px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    overflow: hidden;
+    padding: 12px 10px 10px;
+}
+body.billing-page .console-card h4 {
+    margin: 0 0 4px;
+    line-height: 1.2;
+}
+body.billing-page .console-card .status {
+    margin: 8px 0 4px;
+    line-height: 1.2;
+    font-size: .95em;
+}
+body.billing-page .console-card .timer {
+    margin: 4px 0;
+    font-size: 1.35em;
+    line-height: 1.2;
+}
+body.billing-page .console-card > p {
+    margin: 5px 0;
+    line-height: 1.2;
+    font-size: .9em;
+}
+body.billing-page .console-card .session-details {
+    margin: 4px 0;
+    font-size: .82em;
+    line-height: 1.2;
+}
+body.billing-page .console-card .card-actions {
+    margin-top: auto;
+    padding-top: 4px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 2px;
+}
+body.billing-page .console-card .card-actions button {
+    margin: 2px;
+    padding: 7px 9px;
+    font-size: .82em;
+    line-height: 1.1;
+}
+body.billing-page .console-card .card-actions .btn-add-order {
+    flex-basis: auto;
+}
+body.billing-page .console-card .order-item {
+    font-size: .8em;
+}
+
+@media (max-width: 760px) {
+    body.billing-page .console-card {
+        height: 245px;
+        min-height: 245px;
+    }
+}
+
 /*======== History - Natural Light ========*/
 body.history-page { background: #f5f6f8; color: #252525; }
 body.history-page > .container { background: #ffffff; box-shadow: 0 3px 18px rgba(30, 35, 50, 0.08); }
@@ -123,4 +187,5 @@ body.history-page #history-table { background: #ffffff; }
 body.history-page #history-table th { background: #f8f8fb; color: #555766; }
 body.history-page #history-table td { color: #393847; }
 body.history-page #daily-summary-container { background: #ffffff; border-color: #e7e9ee; }
+body.history-page footer { color: #000000; border-top-color: #e3e5ea; }
 body.history-page footer { color: #000000; border-top-color: #e3e5ea; }
