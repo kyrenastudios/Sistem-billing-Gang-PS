@@ -18,4 +18,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const active = currentPage === item.match;
         return `<a href="${item.href}"${active ? ' class="active"' : ''}>${item.label}</a>`;
     }).join('');
+
+    // Sidebar memakai padding kiri pada body, jadi footer tidak digeser lagi.
+    const footer = document.querySelector('footer');
+    if (footer) footer.style.marginLeft = '0';
 });
