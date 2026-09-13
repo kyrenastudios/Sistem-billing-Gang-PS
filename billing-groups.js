@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
         .billing-group-header { display:flex; align-items:baseline; justify-content:space-between; gap:15px; margin:0 0 14px; padding:0 4px; border-bottom:1px solid #e5e7eb; }
         .billing-group-title { margin:0 0 8px; text-align:left; color:#24273a; font-size:1.35rem; font-weight:600; }
         .billing-group-count { color:#777b88; font-size:.85rem; margin-bottom:8px; }
-        .billing-group-grid { display:grid; grid-template-columns:repeat(4,minmax(210px,1fr)); gap:20px; }
+        .billing-group-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
         .billing-group-grid .console-card { min-width:0; margin:0; box-sizing:border-box; height:250px; padding:12px; display:flex; flex-direction:column; overflow:hidden; }
         .billing-group-grid .console-card h4 { flex:0 0 auto; margin:0 0 8px; }
         .billing-group-grid .console-card .status { margin:4px 0 8px; }
@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
         .billing-group-grid .console-card .session-details { margin:4px 0; font-size:.85rem; line-height:1.25; }
         .billing-group-grid .console-card .card-actions { margin-top:auto; padding-top:6px; display:flex; flex-wrap:wrap; justify-content:center; gap:4px; }
         .billing-group-grid .console-card .card-actions button { margin:0; padding:7px 9px; font-size:.82rem; min-height:36px; touch-action:manipulation; }
-        @media (max-width:1100px) { .billing-group-grid { grid-template-columns:repeat(3,minmax(210px,1fr)); } }
+        @media (max-width:1000px) { .billing-group-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; } }
         @media (max-width:760px) {
             .billing-console-group { margin-bottom:22px; }
             .billing-group-header { align-items:center; margin-bottom:10px; }
