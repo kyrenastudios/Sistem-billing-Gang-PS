@@ -2,6 +2,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('add-menu-item-form');
     const tableBody = document.getElementById('menu-list-body');
     const noMenuItemsMessage = document.getElementById('no-menu-items');
+    const editOverlay = document.getElementById('menu-edit-overlay');
+    const editForm = document.getElementById('edit-menu-form');
+    const editName = document.getElementById('edit-item-name');
+    const editPrice = document.getElementById('edit-item-price');
+    const editCancel = document.getElementById('edit-menu-cancel');
+    const editSave = document.getElementById('edit-menu-save');
+    let editingItemId = null;
 
     //======== API & Cache ========
     const MENU_API_URL = 'api/menu.php';
@@ -35,27 +42,78 @@ document.addEventListener('DOMContentLoaded', () => {
                 row.innerHTML = `
                     <td>${item.name}</td>
                     <td>${formatCurrency(item.price)}</td>
-                    <td><button class="btn-stop btn-delete" data-id="${item.id}">Hapus</button></td>
+                    <td><div class="menu-action"><button class="btn-edit-menu" data-id="${item.id}">Edit</button><button class="btn-delete" data-id="${item.id}">Hapus</button></div></td>
                 `;
                 tableBody.appendChild(row);
             });
         }
     }
 
-    //======== Load dari MySQL ========
-    async function loadMenuFromAPI() {
-        try {
-            const response = await fetch(MENU_API_URL, {
-                method: 'GET',
-                cache: 'no-store'
-            });
+    //======== Modal Edit ========
+    function openEditMenu(item) {
+        editingItemId = item.id;
+        editName.value = item.name;
+        editPrice.value = item.price;
+        editOverlay.style.display = 'flex';
+        requestAnimationFrame(() => editName.focus());
+    }
 
+    function closeEditMenu() {
+        editingItemId = null;
+        editOverlay.style.display = 'none';
+        editForm.reset();
+    }
+
+    editCancel.addEventListener('click', closeEditMenu);
+    editOverlay.addEventListener('click', event => {
+        if (event.target === editOverlay) closeEditMenu();
+    });
+
+    //======== Simpan Edit Menu ========
+    editForm.addEventListener('submit', async e => {
+        e.preventDefault();
+        if (!editingItemId) return;
+
+        const name = editName.value.trim();
+        const price = parseInt(editPrice.value, 10);
+
+        if (!name || Number.isNaN(price) || price < 0) {
+            alert('Nama dan harga menu harus diisi dengan benar.');
+            return;
+        }
+
+        editSave.disabled = true;
+        try {
+            const response = await fetch(`${MENU_API_URL}?id=${encodeURIComponent(editingItemId)}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name, price})
+            });
             const result = await response.json();
 
             if (!response.ok || !result.success) {
-                throw new Error(result.message || 'Gagal mengambil menu.');
+                throw new Error(result.message || 'Gagal memperbarui menu.');
             }
 
+            const index = menuItems.findIndex(item => item.id === editingItemId);
+            if (index !== -1) menuItems[index] = result.data;
+            saveMenuCache();
+            renderMenu();
+            closeEditMenu();
+        } catch (error) {
+            console.error('Gagal memperbarui menu di MySQL:', error);
+            alert(error.message || 'Menu gagal diperbarui.');
+        } finally {
+            editSave.disabled = false;
+        }
+    });
+
+    //======== Load dari MySQL ========
+    async function loadMenuFromAPI() {
+        try {
+            const response = await fetch(MENU_API_URL, {method: 'GET', cache: 'no-store'});
+            const result = await response.json();
+            if (!response.ok || !result.success) throw new Error(result.message || 'Gagal mengambil menu.');
             menuItems = Array.isArray(result.data) ? result.data : [];
             saveMenuCache();
             renderMenu();
@@ -66,9 +124,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     //======== Tambah Menu ========
-    form.addEventListener('submit', async (e) => {
+    form.addEventListener('submit', async e => {
         e.preventDefault();
-
         const name = document.getElementById('new-item-name').value.trim();
         const price = parseInt(document.getElementById('new-item-price').value, 10);
 
@@ -79,19 +136,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const response = await fetch(MENU_API_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ name, price })
+                method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name, price})
             });
-
             const result = await response.json();
-
-            if (!response.ok || !result.success) {
-                throw new Error(result.message || 'Gagal menambahkan menu.');
-            }
-
+            if (!response.ok || !result.success) throw new Error(result.message || 'Gagal menambahkan menu.');
             menuItems.push(result.data);
             saveMenuCache();
             renderMenu();
@@ -102,31 +150,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    //======== Hapus Menu ========
-    tableBody.addEventListener('click', async (e) => {
-        if (!e.target.classList.contains('btn-delete')) {
+    //======== Aksi Tabel ========
+    tableBody.addEventListener('click', async e => {
+        const editButton = e.target.closest('.btn-edit-menu');
+        if (editButton) {
+            const item = menuItems.find(menu => menu.id === editButton.dataset.id);
+            if (item) openEditMenu(item);
             return;
         }
 
-        const itemId = e.target.dataset.id;
+        const deleteButton = e.target.closest('.btn-delete');
+        if (!deleteButton) return;
 
-        const confirmed = await window.gangPsConfirm(
-            'Anda yakin ingin menghapus item ini dari menu?',
-            'Hapus Menu'
-        );
+        const itemId = deleteButton.dataset.id;
+        const confirmed = await window.gangPsConfirm('Anda yakin ingin menghapus item ini dari menu?', 'Hapus Menu');
         if (!confirmed) return;
 
         try {
-            const response = await fetch(`${MENU_API_URL}?id=${encodeURIComponent(itemId)}`, {
-                method: 'DELETE'
-            });
-
+            const response = await fetch(`${MENU_API_URL}?id=${encodeURIComponent(itemId)}`, {method: 'DELETE'});
             const result = await response.json();
-
-            if (!response.ok || !result.success) {
-                throw new Error(result.message || 'Gagal menghapus menu.');
-            }
-
+            if (!response.ok || !result.success) throw new Error(result.message || 'Gagal menghapus menu.');
             menuItems = menuItems.filter(item => item.id !== itemId);
             saveMenuCache();
             renderMenu();
