@@ -92,9 +92,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 z-index: 800 !important;
                 background: #f5f6f8 !important;
                 border-top: 1px solid #e0e3e8 !important;
+                color: #000000 !important;
                 text-align: center !important;
             }
-            body > footer #copyright-year { display: inline; }
+            body > footer #copyright-year { display: inline; color: #000000 !important; }
             @media (max-width: 700px) {
                 body { padding: 10px; padding-bottom: 80px; }
                 nav {
@@ -122,7 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
     //======== Tahun Lokal PC ========
     const footer = document.querySelector('footer');
     if (footer) {
-        const yearEl = footer.querySelector('#copyright-year');
-        if (yearEl) yearEl.textContent = new Date().getFullYear();
+        const year = new Date().getFullYear();
+        footer.innerHTML = `GANG PS Ponorogo &copy; <span id="copyright-year">${year}</span>`;
     }
 });
