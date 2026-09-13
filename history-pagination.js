@@ -13,12 +13,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const style = document.createElement('style');
     style.textContent = `
+        #history-table th:first-child, #history-table td:first-child { width:55px; text-align:center; white-space:nowrap; }
         #history-pagination { display:flex; justify-content:center; align-items:center; gap:6px; flex-wrap:wrap; margin:20px 0 8px; }
         #history-pagination button { min-width:38px; height:38px; padding:0 11px; border:1px solid #d9dce3; border-radius:7px; background:#fff; color:#3f4354; cursor:pointer; font-weight:600; }
         #history-pagination button:hover { background:#f1f3f7; }
         #history-pagination button.active { background:#3f51b5; border-color:#3f51b5; color:#fff; }
         #history-pagination button:disabled { opacity:.45; cursor:not-allowed; }
         #history-pagination .pagination-info { width:100%; text-align:center; color:#777b88; font-size:.85rem; margin-top:3px; }
+        @media(max-width:600px) { #history-table th:first-child, #history-table td:first-child { width:42px; } }
     `;
     document.head.appendChild(style);
 
@@ -29,6 +31,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         rows.forEach((row, index) => {
             const page = Math.floor(index / pageSize) + 1;
+            let numberCell = row.querySelector('.history-row-number');
+            if (!numberCell) {
+                numberCell = document.createElement('td');
+                numberCell.className = 'history-row-number';
+                row.insertBefore(numberCell, row.firstChild);
+            }
+            numberCell.textContent = String(index + 1);
             row.style.display = page === currentPage ? '' : 'none';
         });
 
