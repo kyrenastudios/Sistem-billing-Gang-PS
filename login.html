@@ -7,26 +7,33 @@
 <style>
 body.login-page{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;background:#f5f6f8;color:#252525}
 .login-card{width:min(420px,100%);box-sizing:border-box;background:#fff;border:1px solid #e7e9ee;border-radius:18px;padding:30px;box-shadow:0 8px 30px rgba(30,35,50,.10)}
-.login-logo{display:block;width:min(300px,82%);height:auto;margin:0 auto 8px}
+.login-logo{display:block;width:min(260px,78%);height:auto;margin:0 auto 8px}
 .login-title{text-align:center;font-size:1.2rem;color:#555966;margin:0 0 26px}
 .login-field{margin-bottom:16px}.login-field label{display:block;margin-bottom:7px;font-weight:600}.login-field input{width:100%;box-sizing:border-box;padding:12px 13px;border:1px solid #d8dbe3;border-radius:9px;font:inherit}.login-field input:focus{outline:none;border-color:#4b56bd;box-shadow:0 0 0 3px rgba(75,86,189,.12)}
 #login-submit{width:100%;margin:8px 0 0;padding:12px;background:#4b56bd;color:#fff;border:0;border-radius:9px;font:600 1rem Poppins,sans-serif;cursor:pointer}#login-submit:disabled{opacity:.6;cursor:not-allowed}
 #login-message{min-height:22px;margin-top:14px;text-align:center;color:#c62828;font-size:.9rem}
-@media(max-width:480px){body.login-page{padding:14px}.login-card{padding:24px 20px;border-radius:14px}.login-logo{width:min(250px,84%)}}
+@media(max-width:480px){body.login-page{padding:14px}.login-card{padding:24px 20px;border-radius:14px}.login-logo{width:min(230px,80%)}}
 </style>
 </head>
 <body class="login-page">
 <div class="login-card">
-<img class="login-logo" alt="GANG PS Game Center" src="data:image/webp;base64,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" >
-<h1 class="login-title">Login Pengguna</h1>
-<form id="login-form">
-<div class="login-field"><label for="username">Username</label><input id="username" name="username" autocomplete="username" required autofocus></div>
-<div class="login-field"><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required></div>
-<button id="login-submit" type="submit">Masuk</button><div id="login-message"></div>
-</form>
+    <img class="login-logo" alt="GANG PS Game Center" src="./assets/gang-ps-logo.webp">
+    <h1 class="login-title">Login Pengguna</h1>
+    <form id="login-form">
+        <div class="login-field"><label for="username">Username</label><input id="username" name="username" autocomplete="username" required autofocus></div>
+        <div class="login-field"><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required></div>
+        <button id="login-submit" type="submit">Masuk</button>
+        <div id="login-message"></div>
+    </form>
 </div>
 <script>
-async function readApiResponse(response){const text=await response.text();try{return JSON.parse(text)}catch(e){const clean=text.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();throw new Error(clean?`Server API mengembalikan response tidak valid: ${clean.slice(0,240)}`:'Server API tidak mengembalikan response.')}}
+async function readApiResponse(response){
+    const text=await response.text();
+    try{return JSON.parse(text)}catch(e){
+        const clean=text.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
+        throw new Error(clean ? `Server API mengembalikan response tidak valid: ${clean.slice(0,240)}` : 'Server API tidak mengembalikan response.');
+    }
+}
 (async()=>{try{const r=await fetch('./api/auth.php?action=me');const d=await readApiResponse(r);if(d.authenticated)window.location.replace('./index.html')}catch(e){}})();
 const form=document.getElementById('login-form'),btn=document.getElementById('login-submit'),msg=document.getElementById('login-message');
 form.addEventListener('submit',async e=>{e.preventDefault();btn.disabled=true;msg.textContent='Memproses...';try{const r=await fetch('./api/auth.php?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:document.getElementById('username').value.trim(),password:document.getElementById('password').value})});const d=await readApiResponse(r);if(!r.ok||!d.success)throw new Error(d.message||'Login gagal.');window.location.replace('./index.html')}catch(err){msg.textContent=err.message;btn.disabled=false}});
