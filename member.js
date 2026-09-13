@@ -197,7 +197,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const member = members.find(item => item.id === memberId);
             if (!member) return;
 
-            if (confirm('Anda yakin ingin menghapus member ini? Menghapus member tidak akan menghapus transaksi pembeliannya dari histori.')) {
+            const confirmed = await window.gangPsConfirm(
+                'Anda yakin ingin menghapus member ini? Menghapus member tidak akan menghapus transaksi pembeliannya dari histori.'
+            );
+            if (confirmed) {
                 try {
                     members = await deleteMemberFromDatabase(member.name);
                     saveMembers();
@@ -218,7 +221,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const newTotalPasses = currentTotalPasses + 21;
             const newRemaining = currentRemaining + 21;
 
-            if (confirm(`Perpanjang Play Pass untuk ${member.name} seharga ${formatCurrency(price)}?\nSisa sesi saat ini: ${currentRemaining}x\nSetelah diperpanjang akan menjadi: ${newRemaining}x`)) {
+            const confirmed = await window.gangPsConfirm(
+                `Perpanjang Play Pass untuk ${member.name} seharga ${formatCurrency(price)}?\nSisa sesi saat ini: ${currentRemaining}x\nSetelah diperpanjang akan menjadi: ${newRemaining}x`
+            );
+            if (confirmed) {
                 try {
                     const updatedMember = {
                         ...member,
