@@ -139,21 +139,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const allHistory = JSON.parse(localStorage.getItem('history')) || [];
         if (!allHistory[indexToDelete]) return;
-        if (!confirm('Anda yakin ingin menghapus transaksi ini secara permanen?')) return;
 
-        //======== Hapus Lokal ========
-        allHistory.splice(indexToDelete, 1);
-        localStorage.setItem('history', JSON.stringify(allHistory));
-        renderHistory(dateInput.value);
+        window.gangPsConfirm('Anda yakin ingin menghapus transaksi ini secara permanen?', 'Hapus Transaksi').then(confirmed => {
+            if (!confirmed) return;
 
-        //======== Sinkronisasi Setelah Render ========
-        setTimeout(() => {
-            if (window.gangPsDbSync && typeof window.gangPsDbSync.push === 'function') {
-                window.gangPsDbSync.push().catch(error => {
-                    console.error('DB Sync: gagal setelah hapus history:', error);
-                });
-            }
-        }, 50);
+            //======== Hapus Lokal ========
+            const latestHistory = JSON.parse(localStorage.getItem('history')) || [];
+            if (!latestHistory[indexToDelete]) return;
+            latestHistory.splice(indexToDelete, 1);
+            localStorage.setItem('history', JSON.stringify(latestHistory));
+            renderHistory(dateInput.value);
+
+            //======== Sinkronisasi Setelah Render ========
+            setTimeout(() => {
+                if (window.gangPsDbSync && typeof window.gangPsDbSync.push === 'function') {
+                    window.gangPsDbSync.push().catch(error => {
+                        console.error('DB Sync: gagal setelah hapus history:', error);
+                    });
+                }
+            }, 50);
+        }).catch(error => {
+            console.error('Dialog konfirmasi gagal:', error);
+        });
     });
 
     //======== Tombol Rekap ========
