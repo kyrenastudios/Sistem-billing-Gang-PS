@@ -49,19 +49,19 @@ h1, h2, h3 {
 
 .console-card.ps3 h4 {
     font-size: 1.3em; 
-    color: #c0ca33; 
+    color: #FF9013; 
     font-family: 'Verdana', sans-serif; 
 }
 
 .console-card.ps4 h4 {
     font-size: 1.4em;
-    color: #1e88e5; 
+    color: #6F00FF; 
     font-weight: bold; 
 }
 
 .console-card.ps5 h4 {
     font-size: 1.5em; 
-    color: #3949ab; 
+    color: #FF0B55; 
     text-transform: uppercase; 
 }
 
@@ -313,6 +313,20 @@ button:disabled { background-color: #ccc; cursor: not-allowed; }
 .form-group input, .form-group select, .form-group textarea {
     width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;
 }
+
+/* Searchable select (combobox) styling */
+.searchable-select-container { width: 100%; }
+.searchable-select-input { padding: 8px; border: 1px solid #cfcfe6; border-radius: 6px; background: #fff; color: #222; }
+.searchable-select-input:focus { outline: none; border-color: #3f51b5; box-shadow: 0 0 0 3px rgba(63,81,181,0.08); }
+.searchable-select-dropdown { border-radius: 6px; overflow: auto; max-height: 220px; }
+.searchable-option { padding: 8px 10px; cursor: pointer; }
+.searchable-option:hover { background: #f1f3ff; }
+.searchable-select-dropdown div { border-bottom: 1px solid #f0f0f3; }
+.searchable-select-dropdown div:last-child { border-bottom: none; }
+
+/* highlighted option for keyboard navigation */
+.searchable-option.highlighted { background: #e8edff; }
+
 .modal {
     display: none; position: fixed; z-index: 1000; left: 0; top: 0;
     width: 100%; height: 100%; overflow: auto; background-color: rgba(0, 0, 0, 0.5);
@@ -432,6 +446,43 @@ button:disabled { background-color: #ccc; cursor: not-allowed; }
     font-family: 'Libernitus';
 }
 
+#daily-summary-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap; /* Agar responsif di HP */
+    gap: 15px; /* Jarak jika pindah baris */
+    margin-top: 20px;
+    margin-bottom: 20px;
+    padding: 15px 20px;
+    background-color: var(--card-bg, #fff);
+    border-radius: 8px;
+    border: 1px solid var(--card-border, #ddd);
+}
+
+#daily-total-main {
+    font-size: 1.2em;
+    font-weight: 600;
+    color: var(--header-color, #1a237e);
+}
+
+#daily-total-breakdown {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.summary-pill {
+    padding: 8px 15px;
+    background-color: var(--bg-color, #f0f2f5);
+    border: 1px solid var(--card-border, #ddd);
+    border-radius: 20px;
+    font-size: 1em;
+    font-weight: 600;
+    color: var(--text-color, #333);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
 #total-revenue-container {
     margin-top: 20px;
     padding: 20px;
@@ -544,4 +595,8 @@ footer {
 
 .totalin {
     color: green;
+}
+
+#use-pass-btn:hover {
+    background-color: #388e3c !important; 
 }

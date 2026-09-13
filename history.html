@@ -16,6 +16,7 @@
             <a href="./paket.html">Kelola Paket</a>
             <a href="./history.html" class="active">Histori</a>
             <a href="./menu.html">Menu Pesanan</a>
+            <a href="./sales.html">Laporan Penjualan</a>
             <a href="./members.html">Kartu Play Pass</a>
             
         </nav>
@@ -51,7 +52,15 @@
         <button id="open-recap-btn">📈 Buat Rekap Penjualan</button>
     </div>
 
-    <div id="daily-total-container" style="text-align: left; margin-top: 20px; margin-bottom: 20px; font-size: 1.2em; font-weight: 600;">
+    <div id="daily-summary-container">
+        <div id="daily-total-main">
+            </div>
+        <div id="daily-total-breakdown">
+            <div id="daily-rental-total" class="summary-pill">
+                </div>
+            <div id="daily-sales-total" class="summary-pill">
+                </div>
+        </div>
     </div>
 
         <table id="history-table">

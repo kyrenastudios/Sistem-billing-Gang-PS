@@ -33,6 +33,80 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // (wireSelectFilter removed)
+
+    // Create in-place searchable select for kasir page
+    function createSearchableSelect(selectElement) {
+        if (!selectElement) return;
+        if (selectElement.dataset.searchable === '1') return;
+        selectElement.dataset.searchable = '1';
+        selectElement.style.display = 'none';
+
+        const container = document.createElement('div');
+        container.className = 'searchable-select-container';
+        container.style.position = 'relative';
+        container.style.display = 'inline-block';
+        container.style.width = selectElement.style.width || '100%';
+        selectElement.parentNode.insertBefore(container, selectElement);
+        container.appendChild(selectElement);
+
+        const input = document.createElement('input');
+        input.type = 'text'; input.className = 'searchable-select-input'; input.style.width = '100%'; input.style.padding = '6px 8px'; input.placeholder = 'Ketik untuk mencari...';
+        container.insertBefore(input, selectElement);
+
+        const dropdown = document.createElement('div');
+        dropdown.style.position = 'absolute'; dropdown.style.left = '0'; dropdown.style.right = '0'; dropdown.style.top = '100%'; dropdown.style.maxHeight = '180px'; dropdown.style.overflow = 'auto'; dropdown.style.display = 'none'; dropdown.style.border = '1px solid #ccc'; dropdown.style.background = '#fff'; container.appendChild(dropdown);
+
+        function buildList() {
+            dropdown.innerHTML = '';
+            const opts = Array.from(selectElement.options);
+            opts.forEach(o => {
+                // skip placeholder / disabled options
+                if (o.disabled || (o.value || '').toString().trim() === '') return;
+                const item = document.createElement('div'); item.dataset.value = o.value; item.textContent = o.textContent; item.style.padding = '6px 8px'; item.style.cursor = 'pointer'; dropdown.appendChild(item);
+                item.addEventListener('mouseenter', () => item.style.background = '#f5f5f5');
+                item.addEventListener('mouseleave', () => item.style.background = '');
+                item.addEventListener('click', () => { selectElement.value = item.dataset.value; input.value = item.textContent; dropdown.style.display = 'none'; selectElement.dispatchEvent(new Event('change')); });
+            });
+            dropdown.dataset.highlight = '-1';
+        }
+
+        input.addEventListener('input', () => {
+            const q = (input.value || '').trim().toLowerCase();
+            const items = dropdown.querySelectorAll('div');
+            let any = false;
+            items.forEach(it => {
+                const txt = (it.textContent || '').toLowerCase();
+                const val = (it.dataset.value || '').toLowerCase();
+                const match = q === '' || txt.includes(q) || val.includes(q);
+                it.style.display = match ? 'block' : 'none';
+                if (match) any = true;
+            });
+            dropdown.style.display = any ? 'block' : 'none';
+            // reset highlight
+            const prev = dropdown.querySelector('.highlighted'); if (prev) prev.classList.remove('highlighted'); dropdown.dataset.highlight = '-1';
+        });
+
+    input.addEventListener('focus', () => { buildList(); const sel = selectElement.selectedOptions[0]; if (sel && !input.value && (sel.value || '').toString().trim() !== '') input.value = sel.textContent; dropdown.style.display = 'block'; });
+        
+        function clearHighlight() { const prev = dropdown.querySelector('.highlighted'); if (prev) prev.classList.remove('highlighted'); dropdown.dataset.highlight = '-1'; }
+        function highlightIndex(idx) {
+            const items = Array.from(dropdown.querySelectorAll('div')).filter(n => n.style.display !== 'none');
+            if (!items.length) return; if (idx < 0) idx = 0; if (idx >= items.length) idx = items.length - 1; clearHighlight(); const el = items[idx]; el.classList.add('highlighted'); dropdown.dataset.highlight = String(idx); const top = dropdown.scrollTop; const bottom = top + dropdown.clientHeight; const elTop = el.offsetTop; const elBottom = elTop + el.offsetHeight; if (elTop < top) dropdown.scrollTop = elTop; else if (elBottom > bottom) dropdown.scrollTop = elBottom - dropdown.clientHeight;
+        }
+
+        input.addEventListener('keydown', (ev) => {
+            const visible = Array.from(dropdown.querySelectorAll('div')).filter(n => n.style.display !== 'none');
+            if (ev.key === 'ArrowDown') { ev.preventDefault(); if (dropdown.style.display === 'none') { buildList(); dropdown.style.display = 'block'; } const cur = parseInt(dropdown.dataset.highlight || '-1', 10); highlightIndex(cur + 1); }
+            else if (ev.key === 'ArrowUp') { ev.preventDefault(); const cur = parseInt(dropdown.dataset.highlight || '-1', 10); highlightIndex(cur - 1); }
+            else if (ev.key === 'Enter') { ev.preventDefault(); const idx = parseInt(dropdown.dataset.highlight || '-1', 10); const items = Array.from(dropdown.querySelectorAll('div')).filter(n => n.style.display !== 'none'); if (idx >= 0 && items[idx]) { const item = items[idx]; selectElement.value = item.dataset.value; input.value = item.textContent; dropdown.style.display = 'none'; selectElement.dispatchEvent(new Event('change')); } else if (items.length === 1) { const item = items[0]; selectElement.value = item.dataset.value; input.value = item.textContent; dropdown.style.display = 'none'; selectElement.dispatchEvent(new Event('change')); } }
+            else if (ev.key === 'Escape') { ev.preventDefault(); dropdown.style.display = 'none'; }
+        });
+        document.addEventListener('click', e => { if (!container.contains(e.target)) dropdown.style.display = 'none'; });
+        const mo = new MutationObserver(buildList); mo.observe(selectElement, { childList: true });
+        buildList(); const sel = selectElement.selectedOptions[0]; if (sel && (sel.value || '').toString().trim() !== '') input.value = sel.textContent;
+    }
+
     // Fungsi untuk merender tampilan keranjang belanja
     function renderCart() {
         cartList.innerHTML = '';
@@ -130,6 +204,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Inisialisasi halaman
+    // note: separate search input removed; createSearchableSelect is used for in-place searching
+
     loadMenuItems();
+
+    // create searchable select after loading options
+    try { createSearchableSelect(selectMenu); } catch (e) { }
+
     renderCart(); // <- renderCart di sini akan otomatis menampilkan data dari localStorage
 });

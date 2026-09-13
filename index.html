@@ -9,12 +9,13 @@
 </head>
 <body>
     <div class="container">
-        <nav>
+        <nav> 
             <a href="./index.html" class="active">Dashboard</a>
             <a href="./manage.html">Kelola PS</a>
             <a href="./paket.html">Kelola Paket</a>
             <a href="./history.html">Histori</a>
             <a href="./menu.html">Menu Pesanan</a>
+            <a href="./sales.html">Laporan Penjualan</a>
             <a href="./members.html">Kartu Play Pass</a>
         </nav>
         <div class="container" style="max-width: 600px; padding: 15px; margin-bottom: 20px; text-align: center; background-color: #e8eaf6;">
@@ -63,17 +64,26 @@
         <div class="modal-content">
             <span class="close-btn">&times;</span>
             <h3>Tambah Waktu untuk <span id="add-time-console-name"></span></h3>
+            
+            <div id="member-add-time-option" style="display:none; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px dashed #ccc;">
+                <p style="margin-top:0; text-align: center;">Member ini memiliki sisa Play Pass:</p>
+                <button id="use-pass-btn" style="width: 100%; background-color: #4caf50; padding: 12px;">
+                    Gunakan 1 Sesi Pass (Sisa X) - GRATIS
+                </button>
+                <p style="text-align: center; margin-bottom: 0; font-weight: bold;">ATAU</p>
+            </div>
+            
             <form id="add-time-form">
                 <input type="hidden" id="add-time-console-id">
                 <div class="form-group">
-                    <label for="additional-time">Pilih Tambahan Waktu:</label>
+                    <label for="additional-time">Pilih Tambahan Waktu Reguler (Berbayar):</label>
                     <select id="additional-time">
                         <option value="30">30 Menit</option>
                         <option value="60">1 Jam</option>
                         <option value="120">2 Jam</option>
                     </select>
                 </div>
-                <button type="submit">Tambah</button>
+                <button type="submit">Tambah Waktu Reguler</button>
             </form>
         </div>
     </div>
@@ -137,6 +147,45 @@
             </div>
         </div>
     </div>
+
+    <div id="payment-modal" class="modal">
+        <div class="modal-content" style="max-width: 450px;">
+            <span class="close-btn">&times;</span>
+            <h3>Pembayaran Sesi</h3>
+            <div class="form-group">
+                <label>Total Biaya:</label>
+                <div id="payment-total" style="font-size: 1.2em; font-weight: bold; margin-bottom: 10px;"></div>
+            </div>
+            <form id="payment-form">
+                <div class="form-group">
+                    <label for="payment-paid-input">Jumlah Bayar:</label>
+                    <input type="number" id="payment-paid-input" min="0" step="1" required>
+                </div>
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button type="button" class="payment-shortcut" data-value="10000">Rp10.000</button>
+                        <button type="button" class="payment-shortcut" data-value="20000">Rp20.000</button>
+                        <button type="button" class="payment-shortcut" data-value="50000">Rp50.000</button>
+                        <button type="button" class="payment-shortcut" data-value="100000">Rp100.000</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Kembalian:</label>
+                    <div id="payment-change" style="font-size: 1.2em; font-weight: bold; margin-top: 6px;">Rp0</div>
+                </div>
+                <button type="submit">Selesaikan Pembayaran</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="view-orders-modal" class="modal">
+         <div class="modal-content">
+         <span class="close-btn">&times;</span>
+         <h3>Pesanan untuk <span id="view-orders-console-name"></span></h3>
+         <div id="view-orders-list-container">
+             </div>
+         </div>
+         </div>
     <footer>
         GANG PS Ponorogo &copy; <span id="copyright-year"></span>2025
     </footer>

@@ -72,10 +72,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     resetBtn.addEventListener('click', () => {
-        if (confirm('APAKAH ANDA YAKIN? Semua data konsol dan Histori Histori akan dihapus secara permanen dan tidak bisa dikembalikan.')) {
-            if (confirm('Peringatan terakhir! Tetap lanjutkan penghapusan?')) {
-                localStorage.clear();
-                alert('Semua data berhasil dihapus.');
+        if (confirm('APAKAH ANDA YAKIN? Semua histori penjualan dan sesi akan dihapus secara permanen dan tidak bisa dikembalikan.')) {
+            if (confirm('Peringatan terakhir! Tetap lanjutkan penghapusan histori?')) {
+                localStorage.removeItem('history');
+                alert('Histori penjualan dan sesi berhasil dihapus.');
                 window.location.reload();
             }
         }

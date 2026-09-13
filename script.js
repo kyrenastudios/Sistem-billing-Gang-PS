@@ -1,8 +1,27 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Harga per jam standar
     const PRICES = { PS3: 5000, PS4: 8000, PS5: 13000 };
 
-    // Definisi Elemen DOM
+    const ADD_TIME_PRICES = {
+        PS3: {
+            '30': 3000,
+            '60': 5000,
+            '120': 9000,
+            '180': 12000,
+            '240': 16000,
+            '300': 20000
+        },
+        PS4: {
+            '30': 4000,
+            '60': 8000,
+            '120': 16000
+        },
+        PS5: {
+            '30': 7000,
+            '60': 13000,
+            '120': 26000
+        }
+    };
+
     const consoleList = document.getElementById('console-list');
     const noConsolesMessage = document.getElementById('no-consoles-message');
     const modals = {
@@ -10,16 +29,18 @@ document.addEventListener('DOMContentLoaded', () => {
         addTime: document.getElementById('add-time-modal'),
         note: document.getElementById('note-modal'),
         order: document.getElementById('order-modal'),
-        booking: document.getElementById('booking-modal'), // Tetap ada untuk antrian
+        booking: document.getElementById('booking-modal'),
         cashier: document.getElementById('cashier-modal'),
+        payment: document.getElementById('payment-modal'),
+        viewOrders: document.getElementById('view-orders-modal'),
     };
     const openCashierBtn = document.getElementById('open-cashier-btn');
-    const alertSound = document.getElementById('alarm-ends');
-
-    // Inisialisasi variabel state utama
+    const alertSound = document.getElementById('timer-alert-sound');
     let consoles = [], menuItems = [], cashierCart = [], timerInterval = null;
+    let currentlyViewedConsoleId = null;
+    let currentlyAddingTimeToConsoleId = null;
+    let pendingStopData = null;
 
-    // --- LOGIKA KASIR MODAL ---
     function renderCashierCart() {
         const cartList = modals.cashier.querySelector('#cashier-cart-list');
         const totalElement = modals.cashier.querySelector('#cashier-total');
@@ -45,12 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const select = modals.cashier.querySelector('#cashier-item-select');
             select.innerHTML = '<option value="" disabled selected>-- Pilih Item --</option>';
             if (menuItems.length > 0) {
-                menuItems.forEach(item => {
-                    const option = document.createElement('option');
-                    option.value = item.id;
-                    option.textContent = `${item.name} - ${formatCurrency(item.price)}`;
-                    select.appendChild(option);
-                });
+                menuItems.forEach(item => { const option = document.createElement('option'); option.value = item.id; option.textContent = `${item.name} - ${formatCurrency(item.price)}`; select.appendChild(option); });
             } else {
                 select.innerHTML = '<option value="">Menu kosong</option>';
             }
@@ -67,18 +83,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const selectedItem = menuItems.find(item => item.id === selectedItemId);
             if (selectedItem && quantity > 0) {
                 const existingItem = cashierCart.find(item => item.id === selectedItemId);
-                if (existingItem) {
-                    existingItem.quantity += quantity;
-                } else {
-                    cashierCart.push({ ...selectedItem, quantity });
-                }
+                if (existingItem) { existingItem.quantity += quantity; } else { cashierCart.push({ ...selectedItem, quantity }); }
                 localStorage.setItem('cashierCart_dashboard', JSON.stringify(cashierCart));
                 renderCashierCart();
             }
             e.target.reset();
             e.target.querySelector('#cashier-item-quantity').value = 1;
         });
-
         modals.cashier.querySelector('#cashier-cart-list').addEventListener('click', e => {
             if (e.target.matches('.btn-delete-order')) {
                 const cartIndex = parseInt(e.target.dataset.cartIndex, 10);
@@ -87,18 +98,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderCashierCart();
             }
         });
-
         modals.cashier.querySelector('#checkout-btn').addEventListener('click', () => {
             if (cashierCart.length === 0) { alert('Keranjang belanja kosong!'); return; }
             const orderCost = cashierCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
             const history = JSON.parse(localStorage.getItem('history')) || [];
             const now = new Date();
-            history.push({
-                date: now.toISOString().split('T')[0], consoleName: 'Penjualan Langsung',
-                startTime: now.toLocaleTimeString('id-ID'), endTime: now.toLocaleTimeString('id-ID'),
-                durationMinutes: 0, rentalCost: 0, orderCost: orderCost, totalCost: orderCost,
-                orders: cashierCart, notes: 'Transaksi kasir', billingInfo: 'Penjualan Langsung'
-            });
+            history.push({ date: now.toISOString().split('T')[0], consoleName: 'Penjualan Langsung', startTime: now.toLocaleTimeString('id-ID'), endTime: now.toLocaleTimeString('id-ID'), durationMinutes: 0, rentalCost: 0, orderCost: orderCost, totalCost: orderCost, orders: cashierCart, notes: 'Transaksi kasir', billingInfo: 'Penjualan Langsung' });
             localStorage.setItem('history', JSON.stringify(history));
             alert(`Transaksi berhasil dicatat!\nTotal Penjualan: ${formatCurrency(orderCost)}`);
             cashierCart = [];
@@ -108,7 +113,57 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- FUNGSI UTAMA & INISIALISASI ---
+    if (modals.payment) {
+        const paymentTotalEl = modals.payment.querySelector('#payment-total');
+        const paymentPaidInput = modals.payment.querySelector('#payment-paid-input');
+        const paymentChangeEl = modals.payment.querySelector('#payment-change');
+        const paymentShortcutButtons = Array.from(modals.payment.querySelectorAll('.payment-shortcut'));
+
+        function updatePaymentChange() {
+            if (!pendingStopData) return;
+            const paid = parseFloat(paymentPaidInput.value.replace(/,/g, '')) || 0;
+            const change = paid - pendingStopData.totalCost;
+            paymentChangeEl.textContent = change >= 0 ? formatCurrency(change) : `Kurang ${formatCurrency(Math.abs(change))}`;
+        }
+
+        paymentPaidInput.addEventListener('input', updatePaymentChange);
+
+        paymentShortcutButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const value = parseInt(btn.dataset.value, 10);
+                if (isNaN(value)) return;
+                paymentPaidInput.value = value;
+                updatePaymentChange();
+            });
+        });
+
+        modals.payment.querySelector('#payment-form').addEventListener('submit', e => {
+            e.preventDefault();
+            if (!pendingStopData) return;
+            const paid = parseFloat(paymentPaidInput.value.replace(/,/g, '')) || 0;
+            if (paid < pendingStopData.totalCost) {
+                alert(`Nominal bayar kurang. Total biaya ${formatCurrency(pendingStopData.totalCost)}.`);
+                paymentPaidInput.focus();
+                return;
+            }
+            const change = paid - pendingStopData.totalCost;
+            const console = findConsole(pendingStopData.consoleId);
+            if (!console) {
+                alert('Konsol tidak ditemukan. Pembayaran dibatalkan.');
+                modals.payment.style.display = 'none';
+                pendingStopData = null;
+                return;
+            }
+            saveToHistory(console, pendingStopData.session, pendingStopData.rentalCost, pendingStopData.orderCost, pendingStopData.totalCost, pendingStopData.durationMs, pendingStopData.historyEndTime, paid, change);
+            alert(`Sesi Selesai!\nTotal Biaya: ${formatCurrency(pendingStopData.totalCost)}\nBayar: ${formatCurrency(paid)}\nKembalian: ${formatCurrency(change)}`);
+            console.session = null;
+            console.status = 'available';
+            saveAndRender();
+            pendingStopData = null;
+            modals.payment.style.display = 'none';
+        });
+    }
+
     function initialize() {
         try {
             consoles = JSON.parse(localStorage.getItem('consoles')) || [];
@@ -132,396 +187,572 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function renderConsoles() {
-        consoleList.innerHTML = '';
-        if (!consoles || consoles.length === 0) {
-            consoleList.style.display = 'none';
-            noConsolesMessage.style.display = 'block';
-            return;
-        }
-        consoles.forEach(console => {
-            const card = document.createElement('div');
-            card.className = `console-card ${console.status} ${console.type.toLowerCase()}`;
-            card.dataset.id = console.id;
-            let detailsHTML = '', actionsHTML = '', bookingHTML = '';
-
-            // Ini adalah fitur antrian booking yang sudah ada sementara di disable
-            if (console.bookings && console.bookings.length > 0) {
-                const bookingItems = console.bookings.map(book => `
-                    <li class="booking-list-item">
-                        <span>${book.customerName} (${book.durationMinutes / 60} jam)</span>
-                        <button class="btn-cancel-booking" data-booking-id="${book.id}">Batal</button>
-                    </li>`).join('');
-                bookingHTML = `<div class="booking-info"><strong>Antrian Booking:</strong><ul>${bookingItems}</ul></div>`;
-            }
-
-            if (console.status === 'in-use' || console.status === 'paused') {
-                const session = console.session;
-                if (!session) { console.status = 'available'; saveAndRender(); return; }
-                const timerId = `timer-${console.id}`;
-                const billingTypeDisplay = session.type === 'open' ? 'OPEN' : `Paket (Total ${session.totalPaketMinutes / 60} Jam - ${formatCurrency(session.totalPaketCost)})`;
-                const realTimeCostHTML = session.type === 'open' ? `<p>Biaya Saat Ini: <span class="realtime-cost" id="cost-${console.id}">${formatCurrency(calculateCost(console.type, Math.ceil(((session.frozenElapsedTime || 0)) / 60000)))}</span></p>` : '';
-                const notesDisplay = session.notes ? `<div class="session-details"><strong class="notes-display">Catatan:</strong> ${session.notes}</div>` : '';
-                let ordersDisplay = '';
-                if (session.orders && session.orders.length > 0) {
-                    const orderItems = session.orders.map((o, index) => `<li class="order-item"><span>${o.name} x ${o.quantity} - ${formatCurrency(o.price * o.quantity)}</span><button class="btn-delete-order" data-order-index="${index}" title="Hapus Pesanan" ${console.status === 'paused' ? 'disabled' : ''}>&times;</button></li>`).join('');
-                    ordersDisplay = `<div class="session-details"><strong>Pesanan:</strong><ul>${orderItems}</ul></div>`;
-                }
-                let timerDisplay = '00:00:00';
-                if(console.status === 'paused' && session.frozenTimeDisplay) timerDisplay = session.frozenTimeDisplay;
-                
-                if (console.status === 'in-use') {
-                    detailsHTML = `<p class="status in-use">SEDANG DIGUNAKAN</p>`;
-                    actionsHTML = `<button class="btn-stop">Stop</button><button class="btn-pause" style="background-color: #ff9800;">Pause</button><button class="btn-add-order">Pesan</button><button class="btn-edit-note">Catatan</button>${session.type !== 'open' ? `<button class="btn-add-time">Tambah Waktu</button>` : ''}`;
-                } else {
-                    detailsHTML = `<p class="status" style="color:#2196f3; font-weight:bold;">DIJEDA (PAUSED)</p>`;
-                    actionsHTML = `<button class="btn-stop" disabled>Stop</button><button class="btn-resume" style="background-color: #4caf50;">Lanjutkan</button> ${session.type !== 'open' ? `<button class="btn-add-time" disabled>Tambah Waktu</button>` : ''}<button class="btn-edit-note" disabled>Catatan</button><button class="btn-add-order" disabled>Pesanan</button><button class="btn-booking" disabled>Booking</button>`;
-                }
-                detailsHTML += `<div class="timer" id="${timerId}">${timerDisplay}</div><p>Tipe: ${billingTypeDisplay}</p>${realTimeCostHTML}${notesDisplay}${ordersDisplay}${bookingHTML}`;
-            } else {
-                detailsHTML = `<p class="status available">TERSEDIA</p>`;
-                actionsHTML = `<button class="btn-start">Mulai Sesi</button>`;
-            }
-            card.innerHTML = `<h4>${console.name}</h4>${detailsHTML}<div class="card-actions">${actionsHTML}</div>`;
-            consoleList.appendChild(card);
-        });
-        updateTimers();
+        consoleList.innerHTML = ''; if (!consoles || consoles.length === 0) { noConsolesMessage.style.display = 'block'; consoleList.style.display = 'none'; return; }
+        consoles.forEach(console => { const card = document.createElement('div'); card.className = `console-card ${console.status} ${console.type.toLowerCase()}`; card.dataset.id = console.id; let detailsHTML = '', actionsHTML = ''; if (console.status === 'in-use' || console.status === 'paused') { const session = console.session; if (!session) { console.status = 'available'; saveAndRender(); return; } const timerId = `timer-${console.id}`; const billingTypeDisplay = session.type === 'open' ? 'OPEN' : `Paket (Total ${session.totalPaketMinutes / 60} Jam - ${formatCurrency(session.totalPaketCost)})`; const realTimeCostHTML = session.type === 'open' ? `<p>Biaya Saat Ini: <span class="realtime-cost" id="cost-${console.id}">${formatCurrency(calculateCost(console.type, Math.ceil(((session.frozenElapsedTime || 0)) / 60000)))}</span></p>` : ''; const notesDisplay = session.notes ? `<div class="session-details"><strong class="notes-display">Catatan:</strong> ${session.notes}</div>` : ''; let ordersDisplay = ''; if (session.orders && session.orders.length > 0) { const totalItems = session.orders.reduce((sum, order) => sum + order.quantity, 0); ordersDisplay = `<button class="btn-view-orders">Lihat Pesanan (${totalItems})</button>`; } else { ordersDisplay = `<p style="font-size:0.9em; opacity:0.7;"><em>Tidak ada pesanan</em></p>`; } let timerDisplay = '00:00:00'; if(console.status === 'paused' && session.frozenTimeDisplay) timerDisplay = session.frozenTimeDisplay; if (console.status === 'in-use') { detailsHTML = `<p class="status in-use">SEDANG DIGUNAKAN</p>`; actionsHTML = `<button class="btn-stop">Stop</button><button class="btn-pause" style="background-color: #ff9800;">Pause</button> ${session.type !== 'open' ? `<button class="btn-add-time">Tambah Waktu</button>` : ''}<button class="btn-edit-note">Catatan</button><button class="btn-add-order">Pesanan</button>`; } else { detailsHTML = `<p class="status" style="color:#2196f3; font-weight:bold;">DIJEDA (PAUSED)</p>`; actionsHTML = `<button class="btn-stop" disabled>Stop</button><button class="btn-resume" style="background-color: #4caf50;">Lanjutkan</button> ${session.type !== 'open' ? `<button class="btn-add-time" disabled>Tambah Waktu</button>` : ''}<button class="btn-edit-note" disabled>Catatan</button><button class="btn-add-order" disabled>Pesanan</button>`; } detailsHTML += `<div class="timer" id="${timerId}">${timerDisplay}</div><p>Tipe: ${billingTypeDisplay}</p>${realTimeCostHTML}${notesDisplay}${ordersDisplay}`; } else { detailsHTML = `<p class="status available">TERSEDIA</p>`; actionsHTML = `<button class="btn-start">Mulai Sesi</button>`; } card.innerHTML = `<h4>${console.name}</h4>${detailsHTML}<div class="card-actions">${actionsHTML}</div>`; consoleList.appendChild(card); }); updateTimers();
     }
     
     function updateTimers() {
-        const now = new Date().getTime();
-        consoles.forEach(c => {
-            if (c.status === 'in-use' && c.session) {
-                const timerElement = document.getElementById(`timer-${c.id}`);
-                if (!timerElement) return;
-                const session = c.session;
-                if (session.type === 'open') {
-                    const elapsedTime = now - session.startTime - (session.totalPausedDuration || 0);
-                    timerElement.textContent = formatDuration(elapsedTime);
-                    const costElement = document.getElementById(`cost-${c.id}`);
-                    if (costElement) {
-                        const elapsedMinutes = Math.ceil(elapsedTime / (1000 * 60));
-                        costElement.textContent = formatCurrency(calculateCost(c.type, elapsedMinutes));
-                    }
-                } else { // Tipe paket
-                    const remainingTime = session.endTime - now;
-                    if (remainingTime <= 0) {
-                        timerElement.textContent = "WAKTU HABIS";
-                        timerElement.style.color = "red";
-    
-                        if (!session.soundPlayed) {
-                            if (alertSound) {
-                                alertSound.play().catch(e => console.error("Audio play failed:", e));
-                            }
-                            session.soundPlayed = true; 
-                            localStorage.setItem('consoles', JSON.stringify(consoles));
-                        }
-                    } else {
-                        timerElement.textContent = formatDuration(remainingTime);
-                    }
-                }
-            }
-        });
+        const now = new Date().getTime(); consoles.forEach(c => { if (c.status === 'in-use' && c.session) { const timerElement = document.getElementById(`timer-${c.id}`); if (!timerElement) return; const session = c.session; if (session.type === 'open') { const elapsedTime = now - session.startTime - (session.totalPausedDuration || 0); timerElement.textContent = formatDuration(elapsedTime); const costElement = document.getElementById(`cost-${c.id}`); if (costElement) { const elapsedMinutes = Math.ceil(elapsedTime / (1000 * 60)); costElement.textContent = formatCurrency(calculateCost(c.type, elapsedMinutes)); } } else { const remainingTime = session.endTime - now; if (remainingTime <= 0) { timerElement.textContent = "WAKTU HABIS"; timerElement.style.color = "red"; if (!session.soundPlayed) { if (alertSound) { alertSound.play().catch(e => console.error("Audio play failed:", e)); } session.soundPlayed = true; localStorage.setItem('consoles', JSON.stringify(consoles)); } } else { timerElement.textContent = formatDuration(remainingTime); } } } });
     }
 
-    // --- FUNGSI MANAJEMEN SESI & BOOKING ---
-    function pauseSession(consoleId) {
-        const console = findConsole(consoleId);
-        if (!console || console.status !== 'in-use' || !console.session) return;
-        const now = new Date().getTime();
-        const session = console.session;
-        if (session.type === 'open') {
-            const elapsedTime = now - session.startTime - (session.totalPausedDuration || 0);
-            session.frozenTimeDisplay = formatDuration(elapsedTime);
-            session.frozenElapsedTime = elapsedTime;
-        } else {
-            const remainingTime = session.endTime - now;
-            session.frozenTimeDisplay = formatDuration(remainingTime);
-        }
-        console.status = 'paused';
-        console.session.pauseTime = now;
-        saveAndRender();
-    }
-
-    function resumeSession(consoleId) {
-        const console = findConsole(consoleId);
-        if (!console || console.status !== 'paused' || !console.session) return;
-        const pausedDuration = new Date().getTime() - console.session.pauseTime;
-        console.session.totalPausedDuration = (console.session.totalPausedDuration || 0) + pausedDuration;
-        if (console.session.type === 'paket') {
-            console.session.endTime += pausedDuration;
-        }
-        console.status = 'in-use';
-        console.session.pauseTime = null;
-        console.session.frozenTimeDisplay = null;
-        console.session.frozenElapsedTime = null;
-        saveAndRender();
-    }
-
-    function cancelBooking(consoleId, bookingId) {
-        const console = findConsole(consoleId);
-        if (console && console.bookings) {
-            const bookingIndex = console.bookings.findIndex(b => b.id === bookingId);
-            if (bookingIndex > -1) {
-                if (confirm(`Yakin ingin membatalkan booking oleh ${console.bookings[bookingIndex].customerName}?`)) {
-                    console.bookings.splice(bookingIndex, 1);
-                    saveAndRender();
-                }
-            }
-        }
-    }
-
+    function pauseSession(consoleId) { const console = findConsole(consoleId); if (!console || console.status !== 'in-use' || !console.session) return; const now = new Date().getTime(); const session = console.session; if (session.type === 'open') { const elapsedTime = now - session.startTime - (session.totalPausedDuration || 0); session.frozenTimeDisplay = formatDuration(elapsedTime); session.frozenElapsedTime = elapsedTime; } else { const remainingTime = session.endTime - now; session.frozenTimeDisplay = formatDuration(remainingTime); } console.status = 'paused'; console.session.pauseTime = now; saveAndRender(); }
+    function resumeSession(consoleId) { const console = findConsole(consoleId); if (!console || console.status !== 'paused' || !console.session) return; const pausedDuration = new Date().getTime() - console.session.pauseTime; console.session.totalPausedDuration = (console.session.totalPausedDuration || 0) + pausedDuration; if (console.session.type === 'paket') { console.session.endTime += pausedDuration; } console.status = 'in-use'; console.session.pauseTime = null; console.session.frozenTimeDisplay = null; console.session.frozenElapsedTime = null; saveAndRender(); }
     function stopSession(consoleId) {
         const console = findConsole(consoleId);
         if (!console || !console.session) return;
         if (console.status === 'paused') { alert('Sesi sedang dijeda...'); return; }
         const session = console.session;
-        const nextInQueue = (console.bookings && console.bookings.length > 0) ? console.bookings[0] : null;
         let rentalCost = 0, durationMs;
+
         if (session.type === 'paket') {
-            rentalCost = session.totalPaketCost; 
-            durationMs = new Date().getTime() - session.startTime - (session.totalPausedDuration || 0);
+            // For prepaid packages, record duration as the purchased package length
+            rentalCost = session.totalPaketCost;
+            durationMs = (session.totalPaketMinutes || 0) * 60000;
         } else {
             const endTime = new Date().getTime();
             durationMs = endTime - session.startTime - (session.totalPausedDuration || 0);
             rentalCost = calculateCost(console.type, Math.ceil(durationMs / 60000));
         }
+
         const orderCost = (session.orders || []).reduce((sum, order) => sum + (order.price * order.quantity), 0);
         const totalCost = rentalCost + orderCost;
-        saveToHistory(console, session, rentalCost, orderCost, totalCost, durationMs);
-        alert(`Sesi Selesai!\n\nTOTAL BIAYA: ${formatCurrency(totalCost)}`);
-        
-        console.session = null;
-        console.status = 'available';
-        saveAndRender();
-        
-        if (nextInQueue) {
-            setTimeout(() => {
-                alert(`🔔 PANGGIL PELANGGAN ANTRIAN 🔔\n\nNama: ${nextInQueue.customerName}\n(Rencana main ${nextInQueue.durationMinutes / 60} jam)`);
-            }, 100);
-        }
+
+        // Determine history end time: for paket use start + purchased duration, otherwise use now
+        const historyEndTime = session.type === 'paket'
+            ? new Date(session.startTime + durationMs).toLocaleTimeString('id-ID')
+            : new Date().toLocaleTimeString('id-ID');
+
+        openPaymentModal(console, session, rentalCost, orderCost, totalCost, durationMs, historyEndTime);
     }
-    
-    function saveToHistory(console, session, rentalCost, orderCost, totalCost, actualDurationMs) {
+    function saveToHistory(console, session, rentalCost, orderCost, totalCost, actualDurationMs, overrideEndTime, paidAmount, changeAmount) {
         const history = JSON.parse(localStorage.getItem('history')) || [];
         const now = new Date();
-        history.push({ 
-            date: now.toISOString().split('T')[0], consoleName: console.name, startTime: new Date(session.startTime).toLocaleTimeString('id-ID'),
-            endTime: now.toLocaleTimeString('id-ID'), durationMinutes: Math.ceil(actualDurationMs / 60000), rentalCost, orderCost, totalCost, 
-            orders: session.orders, billingInfo: session.billingInfo, notes: session.notes,
-        });
+        const startTimeStr = new Date(session.startTime).toLocaleTimeString('id-ID');
+        const endTimeStr = overrideEndTime || now.toLocaleTimeString('id-ID');
+        const historyEntry = {
+            date: now.toISOString().split('T')[0],
+            consoleName: console.name,
+            startTime: startTimeStr,
+            endTime: endTimeStr,
+            // store both minutes (existing field) and seconds (new, more precise)
+            durationMinutes: Math.ceil(actualDurationMs / 60000),
+            durationSeconds: Math.round(actualDurationMs / 1000),
+            rentalCost,
+            orderCost,
+            totalCost,
+            orders: session.orders,
+            billingInfo: session.billingInfo,
+            notes: session.notes,
+        };
+        if (paidAmount !== undefined) historyEntry.paidAmount = paidAmount;
+        if (changeAmount !== undefined) historyEntry.changeAmount = changeAmount;
+        history.push(historyEntry);
         localStorage.setItem('history', JSON.stringify(history));
     }
-    
-    function resetConsole(console) {
-        console.status = 'available';
-        console.session = null;
-        saveAndRender();
+    function openPaymentModal(console, session, rentalCost, orderCost, totalCost, durationMs, historyEndTime) {
+        if (!modals.payment) {
+            saveToHistory(console, session, rentalCost, orderCost, totalCost, durationMs, historyEndTime);
+            alert(`Sesi Selesai!\n\nTOTAL BIAYA: ${formatCurrency(totalCost)}`);
+            console.session = null;
+            console.status = 'available';
+            saveAndRender();
+            return;
+        }
+
+        pendingStopData = {
+            consoleId: console.id,
+            session,
+            rentalCost,
+            orderCost,
+            totalCost,
+            durationMs,
+            historyEndTime
+        };
+
+        const paymentTotalEl = modals.payment.querySelector('#payment-total');
+        const paymentPaidInput = modals.payment.querySelector('#payment-paid-input');
+        const paymentChangeEl = modals.payment.querySelector('#payment-change');
+
+        paymentTotalEl.textContent = formatCurrency(totalCost);
+        paymentPaidInput.value = totalCost;
+        paymentChangeEl.textContent = 'Rp0';
+        modals.payment.style.display = 'block';
+        paymentPaidInput.focus();
     }
+    function resetConsole(console) { console.status = 'available'; console.session = null; saveAndRender(); }
     
-    // --- EVENT LISTENERS ---
-    consoleList.addEventListener('click', e => {
-        const card = e.target.closest('.console-card');
-        if (!card) return;
-        const consoleId = card.dataset.id;
+    function useMemberPassToAddTime(consoleId) {
         const console = findConsole(consoleId);
-        if (!console) return;
+        if (!console || !console.session || !console.session.billingInfo || !console.session.billingInfo.startsWith('Member Pass: ')) { console.warn("useMemberPassToAddTime dipanggil untuk sesi non-member."); openAddTimeWithOptionsModal(console); return; }
+        const session = console.session;
+        const memberName = session.billingInfo.replace('Member Pass: ', '');
+        let members = JSON.parse(localStorage.getItem('members')) || [];
+        const memberIndex = members.findIndex(m => m.name === memberName);
+        if (memberIndex !== -1) {
+            const member = members[memberIndex];
+            const remaining = (member.totalPasses || 21) - member.timesUsed;
+            if (remaining > 0) {
+                if (confirm(`Gunakan 1 sesi Play Pass ${member.name}?\nSisa sesi akan menjadi ${remaining - 1}x.`)) {
+                    const durationToAdd = console.type === 'PS4' ? 120 : (console.type === 'PS5' ? 60 : 0);
+                    if (durationToAdd === 0) { alert("Error: Tipe konsol tidak valid untuk member pass."); return; }
+                    const now = new Date().getTime();
+                    const baseTime = session.endTime > now ? session.endTime : now;
+                    session.endTime = baseTime + durationToAdd * 60000;
+                    session.totalPaketMinutes += durationToAdd;
+                    session.soundPlayed = false;
+                    members[memberIndex].timesUsed++;
+                    localStorage.setItem('members', JSON.stringify(members));
+                    const history = JSON.parse(localStorage.getItem('history')) || [];
+                    const historyNow = new Date();
+                    const historyEntry = { date: historyNow.toISOString().split('T')[0], consoleName: console.name, startTime: historyNow.toLocaleTimeString('id-ID'), endTime: historyNow.toLocaleTimeString('id-ID'), durationMinutes: durationToAdd, rentalCost: 0, orderCost: 0, totalCost: 0, billingInfo: `Member Pass: ${memberName}`, orders: [], notes: `Pemakaian Pass Tambah Waktu (ke-${members[memberIndex].timesUsed})` };
+                    history.push(historyEntry);
+                    localStorage.setItem('history', JSON.stringify(history));
+                    saveAndRender();
+                    alert(`Waktu ditambah ${durationToAdd / 60} jam (Pass).`);
+                    modals.addTime.style.display = 'none';
+                }
+            } else {
+                alert(`Member ${memberName} sudah habis sesi Play Pass.`);
+                const usePassBtn = document.getElementById('use-pass-btn');
+                if (usePassBtn) { usePassBtn.disabled = true; usePassBtn.textContent = "Sesi Pass Habis"; }
+            }
+        } else {
+            alert(`Data member ${memberName} tidak ditemukan.`);
+        }
+    }
 
-        if (e.target.matches('.btn-start')) {
-            const selectPaket = modals.start.querySelector('#billing-type');
-            const selectMember = modals.start.querySelector('#member-select');
-            const memberContainer = document.getElementById('member-selection-container');
-            
-            selectPaket.innerHTML = '';
-            selectMember.innerHTML = '<option value="">-- Non-Member --</option>';
-            memberContainer.style.display = 'none';
+    consoleList.addEventListener('click', e => {
+        const card = e.target.closest('.console-card'); if (!card) return;
+        const consoleId = card.dataset.id; const console = findConsole(consoleId); if (!console) return;
+        if (e.target.matches('.btn-start')) { openStartModal(console); }
+        else if (e.target.matches('.btn-pause')) { pauseSession(consoleId); }
+        else if (e.target.matches('.btn-resume')) { resumeSession(consoleId); }
+        else if (e.target.matches('.btn-stop')) { stopSession(consoleId); }
+        else if (e.target.matches('.btn-add-time')) { openAddTimeWithOptionsModal(console); }
+        else if (e.target.matches('.btn-edit-note')) { openEditNoteModal(console); }
+        else if (e.target.matches('.btn-add-order')) { openAddOrderModal(console); }
+        else if (e.target.matches('.btn-view-orders')) { openViewOrdersModal(console); }
+    });
+    
+    if (modals.viewOrders) {
+        modals.viewOrders.addEventListener('click', e => {
+            if (e.target.matches('.btn-delete-order')) {
+                if (!currentlyViewedConsoleId) return;
+                const console = findConsole(currentlyViewedConsoleId);
+                const orderIndex = parseInt(e.target.dataset.orderIndex, 10);
+                if (console && console.session && console.session.orders && console.session.orders[orderIndex]) {
+                    console.session.orders.splice(orderIndex, 1);
+                    saveAndRender();
+                    renderOrderModalContent(console);
+                }
+            }
+        });
+    }
 
-            // Isi Pilihan Member
+    function renderOrderModalContent(console) {
+        const listContainer = modals.viewOrders.querySelector('#view-orders-list-container');
+        modals.viewOrders.querySelector('#view-orders-console-name').textContent = console.name;
+        listContainer.innerHTML = '';
+        if (console.session && console.session.orders && console.session.orders.length > 0) {
+            const ul = document.createElement('ul');
+            ul.style.listStyleType = 'none'; ul.style.paddingLeft = '0';
+            console.session.orders.forEach((o, index) => {
+                const li = document.createElement('li');
+                li.className = 'order-item';
+                li.innerHTML = `<span>${o.name} x ${o.quantity} - ${formatCurrency(o.price * o.quantity)}</span><button class="btn-delete-order" data-order-index="${index}" title="Hapus Pesanan" ${console.status === 'paused' ? 'disabled' : ''}>&times;</button>`;
+                ul.appendChild(li);
+            });
+            listContainer.appendChild(ul);
+        } else {
+            listContainer.innerHTML = '<p>Tidak ada pesanan.</p>';
+            setTimeout(() => { if (modals.viewOrders) modals.viewOrders.style.display = 'none'; }, 800);
+        }
+    }
+
+    // (wireSelectFilter removed) createSearchableSelect is used instead
+
+    // note: separate search inputs removed; createSearchableSelect is used instead
+
+    // Create an in-place searchable select (combobox) UI that keeps the original <select> for form compatibility
+    function createSearchableSelect(selectElement) {
+        if (!selectElement) return;
+        // avoid double-initialization
+        if (selectElement.dataset.searchable === '1') return;
+        selectElement.dataset.searchable = '1';
+
+        // hide original select but keep it in DOM
+        selectElement.style.display = 'none';
+
+        const container = document.createElement('div');
+        container.className = 'searchable-select-container';
+        container.style.position = 'relative';
+        container.style.display = 'inline-block';
+        container.style.width = selectElement.style.width || (selectElement.offsetWidth ? selectElement.offsetWidth + 'px' : '100%');
+
+        selectElement.parentNode.insertBefore(container, selectElement);
+        container.appendChild(selectElement);
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'searchable-select-input';
+        input.style.boxSizing = 'border-box';
+        input.style.width = '100%';
+        input.style.padding = '6px 8px';
+        input.style.border = '1px solid #ccc';
+        input.style.borderRadius = '4px';
+        input.placeholder = 'Ketik untuk mencari...';
+        container.insertBefore(input, selectElement);
+
+        const dropdown = document.createElement('div');
+        dropdown.className = 'searchable-select-dropdown';
+        dropdown.style.position = 'absolute';
+        dropdown.style.left = '0';
+        dropdown.style.right = '0';
+        dropdown.style.top = '100%';
+        dropdown.style.zIndex = '9999';
+        dropdown.style.maxHeight = '200px';
+        dropdown.style.overflow = 'auto';
+        dropdown.style.border = '1px solid #ccc';
+        dropdown.style.background = '#fff';
+        dropdown.style.display = 'none';
+        dropdown.style.boxShadow = '0 2px 6px rgba(0,0,0,0.15)';
+        container.appendChild(dropdown);
+
+        function buildList() {
+            dropdown.innerHTML = '';
+            const opts = Array.from(selectElement.options);
+            opts.forEach(o => {
+                // skip placeholder or disabled placeholder options (value empty or disabled)
+                if (o.disabled || (o.value || '').toString().trim() === '') return;
+                const item = document.createElement('div');
+                item.className = 'searchable-option';
+                item.dataset.value = o.value;
+                item.textContent = o.textContent;
+                item.style.padding = '6px 8px';
+                item.style.cursor = 'pointer';
+                item.style.borderBottom = '1px solid #f1f1f1';
+                item.addEventListener('mouseenter', () => item.style.background = '#f5f5f5');
+                item.addEventListener('mouseleave', () => item.style.background = '');
+                dropdown.appendChild(item);
+            });
+            // reset highlighted index
+            dropdown.dataset.highlight = '-1';
+        }
+
+        function openDropdown() { if (dropdown.children.length) dropdown.style.display = 'block'; }
+        function closeDropdown() { dropdown.style.display = 'none'; }
+
+        function clearHighlight() {
+            const prev = dropdown.querySelector('.searchable-option.highlighted');
+            if (prev) prev.classList.remove('highlighted');
+            dropdown.dataset.highlight = '-1';
+        }
+
+        function highlightIndex(idx) {
+            const items = Array.from(dropdown.querySelectorAll('.searchable-option')).filter(n => n.style.display !== 'none');
+            if (!items.length) return;
+            if (idx < 0) idx = 0;
+            if (idx >= items.length) idx = items.length - 1;
+            clearHighlight();
+            const el = items[idx];
+            el.classList.add('highlighted');
+            dropdown.dataset.highlight = String(idx);
+            // ensure visible
+            const top = dropdown.scrollTop;
+            const bottom = top + dropdown.clientHeight;
+            const elTop = el.offsetTop;
+            const elBottom = elTop + el.offsetHeight;
+            if (elTop < top) dropdown.scrollTop = elTop;
+            else if (elBottom > bottom) dropdown.scrollTop = elBottom - dropdown.clientHeight;
+        }
+
+        input.addEventListener('input', () => {
+            const q = (input.value || '').trim().toLowerCase();
+            const items = dropdown.querySelectorAll('.searchable-option');
+            let any = false;
+            items.forEach(it => {
+                const txt = (it.textContent || '').toLowerCase();
+                const val = (it.dataset.value || '').toLowerCase();
+                const match = q === '' || txt.includes(q) || val.includes(q);
+                it.style.display = match ? 'block' : 'none';
+                if (match) any = true;
+            });
+            if (any) openDropdown(); else {
+                dropdown.innerHTML = '<div style="padding:8px;color:#666">Item tidak ditemukan</div>';
+                openDropdown();
+            }
+            // reset highlight when filter changes
+            clearHighlight();
+        });
+
+        dropdown.addEventListener('click', e => {
+            const item = e.target.closest('.searchable-option');
+            if (!item) return;
+            selectElement.value = item.dataset.value;
+            // set input display text to option text
+            input.value = item.textContent;
+            closeDropdown();
+            // notify any listener expecting change on select
+            selectElement.dispatchEvent(new Event('change'));
+        });
+
+        // keyboard navigation
+        input.addEventListener('keydown', (ev) => {
+            const visible = Array.from(dropdown.querySelectorAll('.searchable-option')).filter(n => n.style.display !== 'none');
+            if (ev.key === 'ArrowDown') {
+                ev.preventDefault();
+                if (dropdown.style.display === 'none') { buildList(); openDropdown(); }
+                const cur = parseInt(dropdown.dataset.highlight || '-1', 10);
+                highlightIndex(cur + 1);
+            } else if (ev.key === 'ArrowUp') {
+                ev.preventDefault();
+                const cur = parseInt(dropdown.dataset.highlight || '-1', 10);
+                highlightIndex(cur - 1);
+            } else if (ev.key === 'Enter') {
+                ev.preventDefault();
+                const idx = parseInt(dropdown.dataset.highlight || '-1', 10);
+                const items = Array.from(dropdown.querySelectorAll('.searchable-option')).filter(n => n.style.display !== 'none');
+                if (idx >= 0 && items[idx]) {
+                    const item = items[idx];
+                    selectElement.value = item.dataset.value;
+                    input.value = item.textContent;
+                    closeDropdown();
+                    selectElement.dispatchEvent(new Event('change'));
+                } else {
+                    // if only one visible, pick it
+                    if (items.length === 1) {
+                        const item = items[0];
+                        selectElement.value = item.dataset.value;
+                        input.value = item.textContent;
+                        closeDropdown();
+                        selectElement.dispatchEvent(new Event('change'));
+                    }
+                }
+            } else if (ev.key === 'Escape') {
+                ev.preventDefault();
+                closeDropdown();
+            }
+        });
+
+        input.addEventListener('focus', () => {
+            buildList();
+            // set input value to current selected text if empty
+            const sel = selectElement.selectedOptions[0];
+            if (sel && !input.value && (sel.value || '').toString().trim() !== '') input.value = sel.textContent;
+            openDropdown();
+        });
+
+        // close when clicking outside
+        document.addEventListener('click', e => { if (!container.contains(e.target)) closeDropdown(); });
+
+        // update list if original select changes
+        const mo = new MutationObserver(() => { buildList(); });
+        mo.observe(selectElement, { childList: true, subtree: true });
+
+        // initialize
+        buildList();
+        // if a selected (non-placeholder) option exists, set input
+        const sel = selectElement.selectedOptions[0];
+        if (sel && (sel.value || '').toString().trim() !== '') input.value = sel.textContent;
+    }
+
+    // Initialize searchable selects on dashboard
+    try {
+        const orderSelect2 = document.getElementById('menu-item-select');
+        createSearchableSelect(orderSelect2);
+        const cashierSelect2 = document.getElementById('cashier-item-select');
+        createSearchableSelect(cashierSelect2);
+    } catch (e) { }
+    
+    function openStartModal(console) {
+        const selectPaket = modals.start.querySelector('#billing-type');
+        const selectMember = modals.start.querySelector('#member-select');
+        const memberContainer = document.getElementById('member-selection-container');
+        selectPaket.innerHTML = '';
+        selectMember.innerHTML = '<option value="">-- Non-Member --</option>'; 
+        if(memberContainer) memberContainer.style.display = 'none';
+        
+        if (console.type !== 'PS3') {
             const members = JSON.parse(localStorage.getItem('members')) || [];
-            const availableMembers = members.filter(m => m.psType === console.type && (21 - m.timesUsed) > 0);
+            const availableMembers = members.filter(m => ((m.totalPasses || 21) - m.timesUsed) > 0);
             if (availableMembers.length > 0) {
                 availableMembers.forEach(member => {
-                    const remaining = 21 - member.timesUsed;
+                    const remaining = (member.totalPasses || 21) - member.timesUsed;
                     const option = document.createElement('option');
                     option.value = member.id;
                     option.textContent = `${member.name} (Sisa ${remaining}x)`;
                     selectMember.appendChild(option);
                 });
-                memberContainer.style.display = 'block';
+                if(memberContainer) memberContainer.style.display = 'block';
             }
-
-            // Isi Pilihan Paket Reguler
-            const defaultDurations = [60, 120];
-            defaultDurations.forEach(minutes => {
-                const hours = minutes / 60;
-                const price = PRICES[console.type] * hours;
-                const option = document.createElement('option');
-                option.value = `default_${minutes}`; 
-                option.textContent = `Main ${hours} Jam - ${formatCurrency(price)}`;
-                selectPaket.appendChild(option);
-            });
-            const customPackages = JSON.parse(localStorage.getItem('customPackages')) || [];
-            const availablePackages = customPackages.filter(p => p.consoleType === console.type);
-            if (availablePackages.length > 0) {
-                const separator = document.createElement('option');
-                separator.disabled = true; separator.textContent = '--- Paket Kustom/Promo ---';
-                selectPaket.appendChild(separator);
-                availablePackages.forEach(paket => {
-                    const option = document.createElement('option');
-                    option.value = paket.id;
-                    option.textContent = `${paket.name} (${paket.durationMinutes} mnt) - ${formatCurrency(paket.price)}`;
-                    selectPaket.appendChild(option);
-                });
-            }
-            const openOption = document.createElement('option');
-            openOption.value = 'open'; openOption.textContent = 'OPEN (Bebas)';
-            selectPaket.appendChild(openOption);
-
-            modals.start.querySelector('#modal-console-name').textContent = console.name;
-            modals.start.querySelector('#modal-console-id').value = console.id;
-            modals.start.style.display = 'block';
-        } else if (e.target.matches('.btn-pause')) { pauseSession(consoleId); }
-        else if (e.target.matches('.btn-resume')) { resumeSession(consoleId); }
-        else if (e.target.matches('.btn-stop')) { stopSession(consoleId); }
-        else if (e.target.matches('.btn-delete-order')) { 
-            const orderIndex = parseInt(e.target.dataset.orderIndex, 10); 
-            if (console.session && confirm(`Hapus pesanan "${console.session.orders[orderIndex].name} x ${console.session.orders[orderIndex].quantity}"?`)) { 
-                console.session.orders.splice(orderIndex, 1); saveAndRender(); 
-            } 
-        } else if (e.target.matches('.btn-add-time')) { 
-            modals.addTime.querySelector('#add-time-console-name').textContent = console.name; 
-            modals.addTime.querySelector('#add-time-console-id').value = console.id; 
-            modals.addTime.style.display = 'block'; 
-        } else if (e.target.matches('.btn-edit-note')) { 
-            modals.note.querySelector('#note-console-name').textContent = console.name; 
-            modals.note.querySelector('#note-console-id').value = console.id; 
-            modals.note.querySelector('#console-note').value = console.session.notes || ''; 
-            modals.note.style.display = 'block'; 
-        } else if (e.target.matches('.btn-add-order')) { 
-            const select = modals.order.querySelector('#menu-item-select'); 
-            select.innerHTML = '<option value="" disabled selected>-- Pilih Item --</option>'; 
-            if (menuItems.length > 0) { 
-                menuItems.forEach(item => { const o = document.createElement('option'); o.value = item.id; o.textContent = `${item.name} - ${formatCurrency(item.price)}`; select.appendChild(o); }); 
-            } else { select.innerHTML = '<option value="">Menu kosong</option>'; } 
-            modals.order.querySelector('#order-console-name').textContent = console.name; 
-            modals.order.querySelector('#order-console-id').value = console.id; 
-            modals.order.querySelector('#item-quantity').value = 1; 
-            modals.order.style.display = 'block'; 
         }
-    });
+
+        let defaultDurations = [60, 120, 180, 240];
+        if (console.type === 'PS3') defaultDurations = [30, 60, 120, 180, 240, 300];
+
+        defaultDurations.forEach(minutes => {
+            let price;
+            if (console.type === 'PS3' && ADD_TIME_PRICES.PS3[minutes]) {
+                price = ADD_TIME_PRICES.PS3[minutes];
+            } else {
+                price = PRICES[console.type] * (minutes / 60);
+            }
+            const hoursLabel = minutes >= 60 ? `${minutes / 60} Jam` : `${minutes} Menit`;
+            const option = document.createElement('option');
+            option.value = `default_${minutes}`;
+            option.textContent = `Main ${hoursLabel} - ${formatCurrency(price)}`;
+            selectPaket.appendChild(option);
+        });
+        const customPackages = JSON.parse(localStorage.getItem('customPackages')) || [];
+        const availablePackages = customPackages.filter(p => p.consoleType === console.type);
+        if (availablePackages.length > 0) { const separator = document.createElement('option'); separator.disabled = true; separator.textContent = '--- Paket Kustom/Promo ---'; selectPaket.appendChild(separator); availablePackages.forEach(paket => { const option = document.createElement('option'); option.value = paket.id; option.textContent = `${paket.name} (${paket.durationMinutes} mnt) - ${formatCurrency(paket.price)}`; selectPaket.appendChild(option); }); }
+        const openOption = document.createElement('option');
+        openOption.value = 'open'; openOption.textContent = 'OPEN (Bebas)';
+        selectPaket.appendChild(openOption);
+        modals.start.querySelector('#modal-console-name').textContent = console.name;
+        modals.start.querySelector('#modal-console-id').value = console.id;
+        modals.start.style.display = 'block';
+    }
+    
+    function openAddTimeWithOptionsModal(console) {
+        currentlyAddingTimeToConsoleId = console.id;
+        modals.addTime.querySelector('#add-time-console-name').textContent = console.name;
+        modals.addTime.querySelector('#add-time-console-id').value = console.id;
+        const memberOptionDiv = document.getElementById('member-add-time-option');
+        const usePassBtn = document.getElementById('use-pass-btn');
+        
+        if (console.session && console.session.billingInfo && console.session.billingInfo.startsWith('Member Pass: ')) {
+            const memberName = console.session.billingInfo.replace('Member Pass: ', '');
+            let members = JSON.parse(localStorage.getItem('members')) || [];
+            const member = members.find(m => m.name === memberName);
+            if (member) {
+                const remaining = (member.totalPasses || 21) - member.timesUsed;
+                if (remaining > 0) {
+                    const durationText = console.type === 'PS4' ? '2 Jam' : '1 Jam';
+                    usePassBtn.textContent = `Gunakan 1 Sesi Pass (${durationText}) - Sisa ${remaining -1}x`;
+                    usePassBtn.disabled = false;
+                    memberOptionDiv.style.display = 'block';
+                } else {
+                    usePassBtn.textContent = "Sesi Pass Habis";
+                    usePassBtn.disabled = true;
+                    memberOptionDiv.style.display = 'block';
+                }
+            } else { memberOptionDiv.style.display = 'none'; }
+        } else { memberOptionDiv.style.display = 'none'; }
+        modals.addTime.style.display = 'block';
+    }
+    
+    function openEditNoteModal(console) { modals.note.querySelector('#note-console-name').textContent = console.name; modals.note.querySelector('#note-console-id').value = console.id; modals.note.querySelector('#console-note').value = console.session.notes || ''; modals.note.style.display = 'block'; }
+    function openAddOrderModal(console) { const select = modals.order.querySelector('#menu-item-select'); select.innerHTML = '<option value="" disabled selected>-- Pilih Item --</option>'; if (menuItems.length > 0) { menuItems.forEach(item => { const o = document.createElement('option'); o.value = item.id; o.textContent = `${item.name} - ${formatCurrency(item.price)}`; select.appendChild(o); }); } else { select.innerHTML = '<option value="">Menu kosong</option>'; } modals.order.querySelector('#order-console-name').textContent = console.name; modals.order.querySelector('#order-console-id').value = console.id; modals.order.querySelector('#item-quantity').value = 1; modals.order.style.display = 'block'; }
+    function openViewOrdersModal(console) { currentlyViewedConsoleId = console.id; renderOrderModalContent(console); modals.viewOrders.style.display = 'block'; }
+    function openBookingModal(console) { modals.booking.querySelector('#booking-console-name').textContent = console.name; modals.booking.querySelector('#booking-console-id').value = console.id; modals.booking.style.display = 'block'; modals.booking.querySelector('#customer-name').focus(); }
 
     modals.start.querySelector('form').addEventListener('submit', e => {
         e.preventDefault();
-        const form = e.target;
-        const consoleId = form.querySelector('#modal-console-id').value;
-        const memberId = form.querySelector('#member-select').value;
-        const billingChoice = form.querySelector('#billing-type').value;
-    
-        const console = findConsole(consoleId);
-        if (!console) return;
-    
-        let sessionData = { 
-            startTime: new Date().getTime(), 
-            notes: '', 
-            orders: [], 
-            totalPausedDuration: 0, 
-            soundPlayed: false 
-        };
-
+        const form = e.target; const consoleId = form.querySelector('#modal-console-id').value; const memberId = form.querySelector('#member-select').value; const billingChoice = form.querySelector('#billing-type').value; const console = findConsole(consoleId); if (!console) return;
+        let sessionData = { startTime: new Date().getTime(), notes: '', orders: [], totalPausedDuration: 0, soundPlayed: false };
         if (memberId) {
-            const members = JSON.parse(localStorage.getItem('members')) || [];
-            const memberIndex = members.findIndex(m => m.id === memberId);
-            if (memberIndex === -1) {
-                alert('Member tidak valid atau tidak ditemukan!');
-                return;
-            }
-            
-            const member = members[memberIndex];
-            const duration = member.psType === 'PS4' ? 120 : 60; // PS4 2 jam, PS5 1 jam
-            
-            Object.assign(sessionData, {
-                type: 'paket',
-                totalPaketMinutes: duration,
-                totalPaketCost: 0, // Biaya sesi 0 karena sudah bayar pass
-                endTime: sessionData.startTime + duration * 60000,
-                billingInfo: `Member Pass: ${member.name}`
-            });
-            
-            // Update data pemakaian member
-            members[memberIndex].timesUsed++;
-            localStorage.setItem('members', JSON.stringify(members));
-    
+            const members = JSON.parse(localStorage.getItem('members')) || []; const memberIndex = members.findIndex(m => m.id === memberId); if (memberIndex === -1) { alert('Member tidak valid!'); return; } const member = members[memberIndex]; 
+            const duration = console.type === 'PS4' ? 120 : (console.type === 'PS5' ? 60 : 0);
+            if (duration === 0) { alert("Member pass tidak valid untuk PS3."); return; }
+            Object.assign(sessionData, { type: 'paket', totalPaketMinutes: duration, totalPaketCost: 0, endTime: sessionData.startTime + duration * 60000, billingInfo: `Member Pass: ${member.name}` }); members[memberIndex].timesUsed++; localStorage.setItem('members', JSON.stringify(members));
         } else if (billingChoice) {
-            // Jika tidak ada member yang dipilih, baru proses pilihan paket reguler
-            const customPackages = JSON.parse(localStorage.getItem('customPackages')) || [];
-            const selectedPackage = customPackages.find(p => p.id === billingChoice);
-    
-            if (billingChoice.startsWith('default_')) {
+            const customPackages = JSON.parse(localStorage.getItem('customPackages')) || []; 
+            const selectedPackage = customPackages.find(p => p.id === billingChoice); 
+            if (billingChoice.startsWith('default_')) { 
                 const duration = parseInt(billingChoice.split('_')[1], 10);
-                Object.assign(sessionData, { type: 'paket', totalPaketMinutes: duration, totalPaketCost: PRICES[console.type] * (duration / 60), endTime: sessionData.startTime + duration * 60000, billingInfo: `Main ${duration/60} Jam` });
-            } else if (selectedPackage) {
-                Object.assign(sessionData, { type: 'paket', totalPaketMinutes: selectedPackage.durationMinutes, totalPaketCost: selectedPackage.price, endTime: sessionData.startTime + selectedPackage.durationMinutes * 60000, billingInfo: selectedPackage.name });
-            } else if (billingChoice === 'open') {
-                Object.assign(sessionData, { type: 'open', billingInfo: 'OPEN' });
-            } else {
-                alert('Pilihan paket tidak valid.');
-                return;
-            }
-        } else {
-            // Jika tidak ada member ATAU paket yang dipilih
-            alert('Silakan pilih Member Pass atau Paket Reguler untuk memulai.');
-            return;
-        }
-        
-        // Jalankan sesi jika salah satu pilihan valid
-        console.status = 'in-use';
-        console.session = sessionData;
-        saveAndRender();
-        modals.start.style.display = 'none';
-        form.reset();
+                let cost;
+                if (console.type === 'PS3' && ADD_TIME_PRICES.PS3[duration]) {
+                    cost = ADD_TIME_PRICES.PS3[duration];
+                } else {
+                    cost = PRICES[console.type] * (duration / 60);
+                }
+                const label = duration >= 60 ? `${duration/60} Jam` : `${duration} Menit`;
+                Object.assign(sessionData, { 
+                    type: 'paket', 
+                    totalPaketMinutes: duration, 
+                    totalPaketCost: cost, 
+                    endTime: sessionData.startTime + duration * 60000, 
+                    billingInfo: `Main ${label}` 
+                }); 
+            } else if (selectedPackage) { 
+                Object.assign(sessionData, { 
+                    type: 'paket', 
+                    totalPaketMinutes: selectedPackage.durationMinutes, 
+                    totalPaketCost: selectedPackage.price, 
+                    endTime: sessionData.startTime + selectedPackage.durationMinutes * 60000, 
+                    billingInfo: selectedPackage.name 
+                }); 
+            } else if (billingChoice === 'open') { 
+                Object.assign(sessionData, { type: 'open', billingInfo: 'OPEN' }); 
+            } else { alert('Pilihan paket tidak valid.'); return; }
+        } else { alert('Silakan pilih Member Pass atau Paket Reguler.'); return; }
+        console.status = 'in-use'; console.session = sessionData; saveAndRender(); modals.start.style.display = 'none'; form.reset(); if(form.querySelector('#member-select')) form.querySelector('#member-select').value = '';
     });
 
     modals.addTime.querySelector('form').addEventListener('submit', e => {
         e.preventDefault();
-        const form = e.target, consoleId = form.querySelector('#add-time-console-id').value;
-        const additionalMinutes = parseInt(form.querySelector('#additional-time').value, 10);
+        const form = e.target;
+        const consoleId = form.querySelector('#add-time-console-id').value;
+        const additionalMinutesChoice = form.querySelector('#additional-time').value;
         const console = findConsole(consoleId);
-        if (console && console.status === 'in-use' && console.session.type === 'paket') {
+    
+        if (console && console.status === 'in-use' && console.session && console.session.type === 'paket') {
+            const session = console.session;
             const now = new Date().getTime();
-            const baseTime = console.session.endTime > now ? console.session.endTime : now;
-            console.session.endTime = baseTime + additionalMinutes * 60000;
-            console.session.totalPaketMinutes += additionalMinutes;
-            console.session.totalPaketCost += PRICES[console.type] * (additionalMinutes / 60);
-            saveAndRender();
+            const baseTime = session.endTime > now ? session.endTime : now;
+            
+            const addedCost = ADD_TIME_PRICES[console.type][additionalMinutesChoice];
+    
+            if (addedCost !== undefined) {
+                session.totalPaketCost += addedCost;
+                session.endTime = baseTime + parseInt(additionalMinutesChoice) * 60000;
+                session.totalPaketMinutes += parseInt(additionalMinutesChoice);
+                session.soundPlayed = false;
+                
+                saveAndRender();
+                alert(`Waktu berhasil ditambah ${additionalMinutesChoice} menit.`);
+            } else {
+                alert(`Harga untuk ${additionalMinutesChoice} menit tidak ditemukan.`);
+            }
+        } else {
+            alert("Tidak bisa menambah waktu, sesi tidak aktif atau bukan tipe paket.");
         }
+        
         modals.addTime.style.display = 'none';
     });
-
-    modals.order.querySelector('form').addEventListener('submit', e => {
-        e.preventDefault();
-        const form = e.target, consoleId = form.querySelector('#order-console-id').value;
-        const selectedItemId = form.querySelector('#menu-item-select').value;
-        const quantity = parseInt(form.querySelector('#item-quantity').value, 10);
-        const console = findConsole(consoleId), selectedItem = menuItems.find(item => item.id === selectedItemId);
-        if (console && console.session && selectedItem && quantity > 0) {
-            const existingOrder = console.session.orders.find(order => order.id === selectedItemId);
-            if (existingOrder) { existingOrder.quantity += quantity; }
-            else { console.session.orders.push({ ...selectedItem, quantity }); }
-            saveAndRender();
-        }
-        modals.order.style.display = 'none';
-        form.reset();
-    });
     
-    // --- FUNGSI BANTU & EVENT LISTENER UMUM ---
+    const usePassBtn = document.getElementById('use-pass-btn');
+    if (usePassBtn) { usePassBtn.addEventListener('click', () => { if (currentlyAddingTimeToConsoleId) { useMemberPassToAddTime(currentlyAddingTimeToConsoleId); } }); }
+
+    modals.order.querySelector('form').addEventListener('submit', e => { e.preventDefault(); const form = e.target, consoleId = form.querySelector('#order-console-id').value; const selectedItemId = form.querySelector('#menu-item-select').value; const quantity = parseInt(form.querySelector('#item-quantity').value, 10); const console = findConsole(consoleId), selectedItem = menuItems.find(item => item.id === selectedItemId); if (console && console.session && selectedItem && quantity > 0) { if(!console.session.orders) console.session.orders = []; const existingOrder = console.session.orders.find(order => order.id === selectedItemId); if (existingOrder) { existingOrder.quantity += quantity; } else { console.session.orders.push({ ...selectedItem, quantity }); } saveAndRender(); } modals.order.style.display = 'none'; form.reset(); });
+    
+    if (modals.note) { modals.note.querySelector("form").addEventListener("submit", e => { e.preventDefault(); const t = e.target, o = t.querySelector("#note-console-id").value, n = t.querySelector("#console-note").value, s = findConsole(o); s && s.session && (s.session.notes = n, saveAndRender()), modals.note.style.display = "none" }); }
+    
+    if (modals.booking) {
+        modals.booking.querySelector('form').addEventListener('submit', e => {
+            e.preventDefault();
+            const consoleId = e.target.querySelector('#booking-console-id').value;
+            const customerName = e.target.querySelector('#customer-name').value;
+            const durationMinutes = parseInt(e.target.querySelector('#booking-duration').value, 10);
+            const console = findConsole(consoleId);
+            if (console) {
+                console.booking = { customerName: customerName, durationMinutes: durationMinutes, bookingTime: new Date().getTime() };
+                console.status = 'booked';
+                saveAndRender();
+            }
+            modals.booking.style.display = 'none';
+            e.target.reset();
+        });
+    }
+
     function calculateCost(type, durationMinutes) { return Math.round((PRICES[type] / 60) * durationMinutes); }
     function saveAndRender() { localStorage.setItem('consoles', JSON.stringify(consoles)); renderConsoles(); }
     function findConsole(id) { return consoles.find(c => c.id === id); }
     function formatDuration(ms) { if (ms < 0) ms = 0; const t = Math.floor(ms / 1e3), e = Math.floor(t / 3600), o = Math.floor(t % 3600 / 60); return `${String(e).padStart(2, "0")}:${String(o).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}` }
     function formatCurrency(amount) { return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(amount) }
-    modals.note.querySelector("form").addEventListener("submit", e => { e.preventDefault(); const t = e.target, o = t.querySelector("#note-console-id").value, n = t.querySelector("#console-note").value, s = findConsole(o); s && s.session && (s.session.notes = n, saveAndRender()), modals.note.style.display = "none" });
     Object.values(modals).forEach(m => { if(m) { const btn = m.querySelector(".close-btn"); if (btn) btn.onclick = () => { m.style.display = "none" } } });
     window.onclick = e => { if (e.target.classList.contains("modal")) { e.target.style.display = "none" } };
 
-    // Memulai seluruh aplikasi dengan memanggil inisialisasi
     initialize();
 });

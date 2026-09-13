@@ -15,29 +15,24 @@
             <a href="./paket.html">Kelola Paket</a>
             <a href="./history.html">Histori</a>
             <a href="./menu.html">Menu Pesanan</a>
-            <a href="./members.html" clas="active">Kartu Play Pass</a>
+            <a href="./sales.html">Laporan Penjualan</a>
+            <a href="./members.html" class="active">Kartu Play Pass</a>
         </nav>
 
         <h1>Kelola Member Play Pass</h1>
 
         <div style="display: flex; gap: 30px; flex-wrap: wrap;">
+            
             <div style="flex: 1; min-width: 300px;">
                 <h3>Tambah Member Baru</h3>
                 <form id="member-form">
-                    <div class="form-group" style="margin-bottom: 20px;">
-                        <label for="search-member">🔍 Cari Nama Member:</label>
-                        <input type="text" id="search-member" placeholder="Ketik nama member...">
-                    </div>
                     <div class="form-group">
                         <label for="member-name">Nama Member</label>
                         <input type="text" id="member-name" placeholder="Masukkan nama" required>
                     </div>
                     <div class="form-group">
-                        <label for="member-ps-type">Pilih Tipe Pass</label>
-                        <select id="member-ps-type" required>
-                            <option value="PS4">PS4 (21x @ 2 Jam) - Rp 300.000</option>
-                            <option value="PS5">PS5 (21x @ 1 Jam) - Rp 300.000</option>
-                        </select>
+                        <label>Harga Pass (21 Sesi)</label>
+                        <input type="text" value="Rp 300.000" disabled style="background-color: #eee;">
                     </div>
                     <button type="submit">Tambah Member</button>
                 </form>
@@ -45,30 +40,36 @@
 
             <div style="flex: 2; min-width: 400px;">
                 <h3>Daftar Member Aktif</h3>
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label for="search-member">🔍 Cari Nama Member:</label>
+                    <input type="text" id="search-member" placeholder="Ketik nama member...">
+                </div>
                 <table id="paket-list-table">
                     <thead>
                         <tr>
                             <th>Nama Member</th>
-                            <th>Tipe Pass</th>
                             <th>Pemakaian</th>
                             <th>Sisa</th>
-                            <th>Tanggal Dibuat</th> <th>Aksi</th>
+                            <th>Tanggal Dibuat</th>
+                            <th>Aksi</th>
                         </tr>
                     </thead>
                     <tbody id="member-list-body">
-                        </tbody>
+                    </tbody>
                 </table>
             </div>
         </div>
     </div>
+
     <div id="member-history-modal" class="modal">
         <div class="modal-content" style="max-width: 500px;">
             <span class="close-btn">&times;</span>
             <h3>Histori Pemakaian untuk <span id="history-member-name"></span></h3>
             <div id="member-history-list">
-                </div>
+            </div>
         </div>
     </div>
+
     <script src="./member.js"></script>
 </body>
 </html>
