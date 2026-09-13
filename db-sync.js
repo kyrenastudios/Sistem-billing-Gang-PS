@@ -1,7 +1,8 @@
 (() => {
     //======== Database Sync ========
     const DB_SYNC_URL = 'api/sync.php';
-    const KEYS = ['consoles', 'members', 'customPackages', 'history'];
+    // Consoles dan session billing ditangani API khusus; master console tidak lagi dipush oleh bridge umum.
+    const KEYS = ['members', 'customPackages', 'history'];
     const MENU_KEY = 'menuItems';
     const INIT_KEY = 'gangPsDbInitialized';
 
@@ -38,7 +39,6 @@
     function applyArrayIfSafe(key, value) {
         if (!Array.isArray(value)) return;
         const local = readArray(key);
-        //======== Jangan hapus data lokal dengan hasil DB kosong ========
         if (value.length === 0 && local && local.length > 0) return;
         originalSetItem.call(storage, key, JSON.stringify(value));
     }
@@ -48,6 +48,7 @@
         applyingDatabase = true;
         try {
             const data = result.data;
+            // Consoles tetap dibaca dari MySQL saat halaman dimuat, tetapi perubahan status/session tidak dipush bridge umum.
             applyArrayIfSafe('consoles', data.consoles);
             applyArrayIfSafe('members', data.members);
             applyArrayIfSafe('customPackages', data.customPackages);
@@ -73,17 +74,10 @@
     }
 
     async function postSnapshot(snapshot) {
-        if (syncInProgress) {
-            syncQueued = true;
-            return false;
-        }
+        if (syncInProgress) { syncQueued = true; return false; }
         syncInProgress = true;
         try {
-            const response = await fetch(DB_SYNC_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(snapshot)
-            });
+            const response = await fetch(DB_SYNC_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(snapshot) });
             const result = await response.json();
             if (!response.ok || !result.success) throw new Error(result.error || result.message || `HTTP ${response.status}`);
             applyDatabaseState(result);
@@ -93,69 +87,45 @@
             return false;
         } finally {
             syncInProgress = false;
-            if (syncQueued) {
-                syncQueued = false;
-                scheduleSync();
-            }
+            if (syncQueued) { syncQueued=false; scheduleSync(); }
         }
     }
 
     function scheduleSync() {
         if (applyingDatabase) return;
         clearTimeout(syncTimer);
-        syncTimer = setTimeout(() => postSnapshot(buildSnapshot(true)), 300);
+        syncTimer=setTimeout(()=>postSnapshot(buildSnapshot(true)),300);
     }
 
-    //======== Inisialisasi Database ========
-    const databaseState = requestDatabaseSyncSync();
-    const initialized = storage.getItem(INIT_KEY) === '1';
+    const databaseState=requestDatabaseSyncSync();
+    const initialized=storage.getItem(INIT_KEY)==='1';
 
-    if (!initialized) {
-        const initialSnapshot = buildSnapshot(false);
-        if (Object.keys(initialSnapshot).length > 0) {
-            // Migrasikan data lokal yang masih ada sebelum MySQL menjadi sumber utama.
-            const xhr = new XMLHttpRequest();
-            try {
-                xhr.open('POST', DB_SYNC_URL, false);
-                xhr.setRequestHeader('Content-Type', 'application/json');
+    if(!initialized){
+        const initialSnapshot=buildSnapshot(false);
+        if(Object.keys(initialSnapshot).length>0){
+            const xhr=new XMLHttpRequest();
+            try{
+                xhr.open('POST',DB_SYNC_URL,false);
+                xhr.setRequestHeader('Content-Type','application/json');
                 xhr.send(JSON.stringify(initialSnapshot));
-                if (xhr.status >= 200 && xhr.status < 300) {
-                    const result = JSON.parse(xhr.responseText);
-                    applyDatabaseState(result);
-                } else {
-                    console.warn('DB Sync: migrasi awal gagal HTTP', xhr.status, xhr.responseText);
-                }
-            } catch (error) {
-                console.warn('DB Sync: migrasi awal gagal.', error);
-            }
-        } else if (databaseState) {
-            // Jika localStorage kosong, ambil data yang sudah ada di MySQL.
-            applyDatabaseState(databaseState);
-        }
-        originalSetItem.call(storage, INIT_KEY, '1');
-    } else if (databaseState) {
-        // Setelah migrasi awal, MySQL menjadi sumber data utama.
-        applyDatabaseState(databaseState);
-    }
+                if(xhr.status>=200&&xhr.status<300) applyDatabaseState(JSON.parse(xhr.responseText));
+                else console.warn('DB Sync: migrasi awal gagal HTTP',xhr.status,xhr.responseText);
+            }catch(error){ console.warn('DB Sync: migrasi awal gagal.',error); }
+        }else if(databaseState) applyDatabaseState(databaseState);
+        originalSetItem.call(storage,INIT_KEY,'1');
+    }else if(databaseState) applyDatabaseState(databaseState);
 
-    //======== Pantau Perubahan Web ========
-    Storage.prototype.setItem = function(key, value) {
-        originalSetItem.call(this, key, value);
-        if (!applyingDatabase && KEYS.includes(key)) scheduleSync();
+    Storage.prototype.setItem=function(key,value){
+        originalSetItem.call(this,key,value);
+        if(!applyingDatabase&&KEYS.includes(key)) scheduleSync();
+    };
+    Storage.prototype.removeItem=function(key){
+        originalRemoveItem.call(this,key);
+        if(!applyingDatabase&&KEYS.includes(key)) scheduleSync();
     };
 
-    Storage.prototype.removeItem = function(key) {
-        originalRemoveItem.call(this, key);
-        if (!applyingDatabase && KEYS.includes(key)) scheduleSync();
-    };
-
-    // Helper global untuk sinkronisasi manual bila dibutuhkan halaman lain.
-    window.gangPsDbSync = {
-        refresh: () => {
-            const state = requestDatabaseSyncSync();
-            if (state) applyDatabaseState(state);
-            return state;
-        },
-        push: () => postSnapshot(buildSnapshot(true))
+    window.gangPsDbSync={
+        refresh:()=>{const state=requestDatabaseSyncSync();if(state)applyDatabaseState(state);return state;},
+        push:()=>postSnapshot(buildSnapshot(true))
     };
 })();
