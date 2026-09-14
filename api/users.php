@@ -14,6 +14,9 @@ try {
         jsonResponse(['success' => true, 'users' => $rows]);
     }
 
+    //======== Semua perubahan user hanya Master ========
+    requireMaster();
+
     $raw = file_get_contents('php://input');
     $data = json_decode($raw ?: '{}', true);
     if (!is_array($data)) $data = [];
