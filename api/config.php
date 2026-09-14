@@ -83,7 +83,8 @@ function db(): PDO
 
 //======== PC Mode ========
 // Master hanya jika request berasal dari localhost pada PC utama.
-function isMasterRequest(): bool
+// Nama helper dibuat unik agar tidak bentrok dengan api/sessions.php.
+function gangPsIsMasterRequest(): bool
 {
     $remote = strtolower(trim((string) ($_SERVER['REMOTE_ADDR'] ?? '')));
     return in_array($remote, ['127.0.0.1', '::1'], true);
@@ -91,7 +92,7 @@ function isMasterRequest(): bool
 
 function requireMaster(): void
 {
-    if (!isMasterRequest()) {
+    if (!gangPsIsMasterRequest()) {
         jsonResponse(['success' => false, 'message' => 'PC CLIENT hanya memiliki akses baca.'], 403);
     }
 }
