@@ -9,7 +9,6 @@
     let queuedSave = null;
     let applyingRemote = false;
     let lastSavedSignature = '';
-    let serverMode = 'client';
 
     function safeParse(value, fallback) {
         try { const parsed = JSON.parse(value); return parsed; } catch (_) { return fallback; }
@@ -22,12 +21,6 @@
 
     function modeHeaders() {
         return { 'X-Gang-PS-Mode': localMode() };
-    }
-
-    function applyServerMode(mode) {
-        serverMode = mode === 'master' ? 'master' : 'client';
-        window.gangPsServerMode = serverMode;
-        if (typeof window.gangPsApplyServerMode === 'function') window.gangPsApplyServerMode(serverMode);
     }
 
     function mergeSessions(remoteConsoles) {
@@ -56,7 +49,6 @@
             });
             const result = await response.json();
             if (!response.ok || !result.success) throw new Error(result.error || result.message || `HTTP ${response.status}`);
-            applyServerMode(result.mode);
             const remote = mergeSessions(result.data);
             const signature = JSON.stringify(remote);
             if (signature !== lastSavedSignature) {
@@ -65,6 +57,7 @@
                 lastSavedSignature = signature;
                 if (typeof window.gangPsApplyRemoteSessions === 'function') window.gangPsApplyRemoteSessions(remote);
             }
+            if (typeof window.gangPsApplyPcMode === 'function') window.gangPsApplyPcMode();
             return remote;
         } catch (error) {
             console.error('Gagal memuat session dari MySQL:', error);
@@ -88,12 +81,12 @@
             });
             const result = await response.json();
             if (!response.ok || !result.success) throw new Error(result.error || result.message || `HTTP ${response.status}`);
-            applyServerMode(result.mode || 'master');
             const remote = mergeSessions(result.data || payload);
             applyingRemote = true;
             try { localStorage.setItem('consoles', JSON.stringify(remote)); } finally { applyingRemote = false; }
             lastSavedSignature = JSON.stringify(remote);
             if (typeof window.gangPsApplyRemoteSessions === 'function') window.gangPsApplyRemoteSessions(remote);
+            if (typeof window.gangPsApplyPcMode === 'function') window.gangPsApplyPcMode();
             return remote;
         } catch (error) {
             console.error('Gagal menyimpan session ke MySQL:', error);
