@@ -3,8 +3,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const body = document.getElementById('history-body');
     if (!table || !body) return;
 
-    //======== Pagination 10 Transaksi ========
-    const pageSize = 10;
+    //======== Pagination 5 Transaksi ========
+    const pageSize = 5;
     let currentPage = 1;
 
     const pagination = document.createElement('div');
@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentPage > totalPages) currentPage = totalPages;
 
         rows.forEach((row, index) => {
-            // history.js sudah membuat kolom No., jadi JANGAN menambah <td> baru.
+            //======== Nomor Transaksi ========
             const numberCell = row.firstElementChild;
             if (numberCell) {
                 numberCell.classList.add('history-row-number');
