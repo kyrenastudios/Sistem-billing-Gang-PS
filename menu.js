@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const editForm = document.getElementById('edit-menu-form');
     const editName = document.getElementById('edit-item-name');
     const editPrice = document.getElementById('edit-item-price');
-    const editCancel = document.getElementById('menu-edit-cancel');
+    const editCancel = document.getElementById('edit-menu-cancel');
     const editSave = document.getElementById('menu-edit-save');
     let editingItemId = null;
 
