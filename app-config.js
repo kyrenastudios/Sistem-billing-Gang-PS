@@ -1,23 +1,29 @@
 //======== PC Mode ========
-// Mode disimpan per-browser agar PC Master dan PC Client bisa dibedakan walau memakai IP/Tailscale yang sama.
+// MASTER hanya pada PC server/local. Akses melalui Tailscale/IP otomatis menjadi CLIENT.
 (() => {
-    const STORAGE_KEY = 'gangPsPcMode';
     const params = new URLSearchParams(window.location.search);
     const requestedMode = String(params.get('pc') || '').toLowerCase();
-    const storedMode = String(localStorage.getItem(STORAGE_KEY) || '').toLowerCase();
+    const hostname = String(window.location.hostname || '').toLowerCase();
+    const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname === '[::1]';
+
+    // URL ?pc=master/client hanya untuk override manual/testing.
+    // Tanpa override: localhost = MASTER, selain localhost = CLIENT.
+    const detectedMode = isLocalHost ? 'master' : 'client';
     const initialMode = requestedMode === 'client' || requestedMode === 'master'
         ? requestedMode
-        : (storedMode === 'client' || storedMode === 'master' ? storedMode : 'master');
+        : detectedMode;
 
-    if (requestedMode === 'client' || requestedMode === 'master') {
-        localStorage.setItem(STORAGE_KEY, requestedMode);
-    }
-
-    window.GANG_PS_CONFIG = Object.freeze({ mode: initialMode });
+    window.GANG_PS_CONFIG = Object.freeze({
+        mode: initialMode
+    });
 
     window.gangPsGetLocalMode = () => {
-        const mode = String(localStorage.getItem(STORAGE_KEY) || window.GANG_PS_CONFIG.mode || 'master').toLowerCase();
-        return mode === 'client' ? 'client' : 'master';
+        const currentHostname = String(window.location.hostname || '').toLowerCase();
+        const currentIsLocal = currentHostname === 'localhost' || currentHostname === '127.0.0.1' || currentHostname === '::1' || currentHostname === '[::1]';
+        const manualMode = String(new URLSearchParams(window.location.search).get('pc') || '').toLowerCase();
+
+        if (manualMode === 'master' || manualMode === 'client') return manualMode;
+        return currentIsLocal ? 'master' : 'client';
     };
 
     //======== Billing Controls ========
