@@ -13,18 +13,11 @@
         ? requestedMode
         : detectedMode;
 
-    window.GANG_PS_CONFIG = Object.freeze({
-        mode: initialMode
-    });
+    window.GANG_PS_CONFIG = Object.freeze({ mode: initialMode });
 
-    window.gangPsGetLocalMode = () => {
-        const currentHostname = String(window.location.hostname || '').toLowerCase();
-        const currentIsLocal = currentHostname === 'localhost' || currentHostname === '127.0.0.1' || currentHostname === '::1' || currentHostname === '[::1]';
-        const manualMode = String(new URLSearchParams(window.location.search).get('pc') || '').toLowerCase();
-
-        if (manualMode === 'master' || manualMode === 'client') return manualMode;
-        return currentIsLocal ? 'master' : 'client';
-    };
+    //======== Mode Source ========
+    // Satu sumber mode dipakai badge, billing, dan sync.
+    window.gangPsGetLocalMode = () => window.GANG_PS_CONFIG.mode;
 
     //======== Billing Controls ========
     const masterOnlySelectors = [
@@ -49,7 +42,7 @@
     const masterOnlySelector = masterOnlySelectors.join(',');
 
     function applyPcMode() {
-        const isClient = window.gangPsGetLocalMode() === 'client';
+        const isClient = window.GANG_PS_CONFIG.mode === 'client';
         document.body.classList.toggle('gang-ps-master', !isClient);
         document.body.classList.toggle('gang-ps-client', isClient);
 
@@ -64,7 +57,6 @@
     document.addEventListener('DOMContentLoaded', applyPcMode);
 
     //======== PC Mode Style ========
-    // MASTER selalu menerima pointer event. CLIENT tetap dikunci.
     const style = document.createElement('style');
     style.textContent = `
         .gang-ps-master ${masterOnlySelector} {
