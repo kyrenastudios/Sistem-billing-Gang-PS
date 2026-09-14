@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!nav) return;
 
     const user = window.gangPsUser || null;
+    const pcMode = window.GANG_PS_CONFIG && window.GANG_PS_CONFIG.mode === 'client' ? 'client' : 'master';
     const items = [
         { href:'./index.html', label:'Billing', icon:'▣', match:'index.html' },
         { href:'./history.html', label:'Riwayat Penjualan', icon:'▤', match:'history.html' },
@@ -47,6 +48,12 @@ document.addEventListener('DOMContentLoaded', () => {
             return `<a href="${item.href}"${active ? ' class="active"' : ''}><span class="gang-ps-nav-icon">${item.icon}</span><span class="gang-ps-nav-label">${item.label}</span></a>`;
         }).join('') + `<div class="gang-ps-user-box"><span>${user ? user.username : ''} · ${user && user.role === 'admin' ? 'Admin' : 'Kasir'}</span><button type="button" id="gang-ps-logout">Keluar</button></div>`;
 
+    const modeLabel = pcMode === 'client' ? 'CLIENT' : 'MASTER';
+    const modeBadge = document.createElement('div');
+    modeBadge.className = `gang-ps-mode-badge gang-ps-mode-${pcMode}`;
+    modeBadge.textContent = modeLabel;
+    nav.insertBefore(modeBadge, nav.firstChild);
+
     const logoutBtn = document.getElementById('gang-ps-logout');
     if (logoutBtn) logoutBtn.addEventListener('click', async () => {
         logoutBtn.disabled = true;
@@ -65,7 +72,10 @@ document.addEventListener('DOMContentLoaded', () => {
             :root { --gang-sidebar-width:200px; --gang-sidebar-mini-width:68px; }
             body { padding:20px; padding-bottom:90px; }
             nav { position:fixed !important; left:8px !important; top:14px !important; bottom:14px !important; width:var(--gang-sidebar-width) !important; height:auto !important; box-sizing:border-box !important; z-index:900 !important; margin:0 !important; padding:24px 14px !important; background:#fff !important; border:1px solid #e7e9ee !important; border-radius:16px !important; box-shadow:0 4px 18px rgba(25,24,59,.08) !important; text-align:left !important; display:flex !important; flex-direction:column !important; gap:4px !important; transition:width .2s ease,padding .2s ease !important; }
-            nav::before { content:'GANG PS'; display:block; padding:8px 14px 26px; color:#19183B; font-size:28px; font-weight:600; letter-spacing:.5px; transition:opacity .15s ease !important; }
+            nav::before { content:'GANG PS'; display:block; padding:8px 14px 2px; color:#19183B; font-size:28px; font-weight:600; letter-spacing:.5px; transition:opacity .15s ease !important; }
+            .gang-ps-mode-badge { margin:0 14px 22px; padding:3px 8px; width:max-content; box-sizing:border-box; border-radius:5px; font-size:10px; line-height:1.3; font-weight:700; letter-spacing:1px; background:#f0f1f5; color:#666a78; }
+            .gang-ps-mode-master { background:#e8f5e9; color:#2e7d32; }
+            .gang-ps-mode-client { background:#e3f2fd; color:#1565c0; }
             #gang-ps-sidebar-toggle { width:100%; margin:0 0 8px; padding:9px 12px; display:flex; align-items:center; gap:10px; border:1px solid #e7e9ee; border-radius:10px; background:#f7f8fb; color:#4b4d5f; cursor:pointer; font:600 .82rem/1.2 inherit; }
             #gang-ps-sidebar-toggle:hover { background:#eef0f8; }
             .gang-ps-toggle-icon { font-size:20px; line-height:14px; }
@@ -84,6 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
             body.gang-ps-sidebar-collapsed { --gang-sidebar-width:var(--gang-sidebar-mini-width); }
             body.gang-ps-sidebar-collapsed nav { padding:24px 8px !important; }
             body.gang-ps-sidebar-collapsed nav::before { content:'GP'; text-align:center; padding-left:0; padding-right:0; }
+            body.gang-ps-sidebar-collapsed .gang-ps-mode-badge { margin:0 auto 22px; padding:3px 5px; font-size:8px; letter-spacing:.5px; }
             body.gang-ps-sidebar-collapsed #gang-ps-sidebar-toggle { justify-content:center; padding-left:8px; padding-right:8px; }
             body.gang-ps-sidebar-collapsed .gang-ps-toggle-icon { transform:rotate(180deg); }
             body.gang-ps-sidebar-collapsed .gang-ps-toggle-text,
@@ -96,6 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 nav { position:relative !important; left:auto !important; top:auto !important; bottom:auto !important; width:100% !important; min-height:0 !important; height:auto !important; margin:0 0 12px !important; padding:8px max(8px, env(safe-area-inset-left)) 8px max(8px, env(safe-area-inset-right)) !important; border:0 !important; border-radius:0 !important; box-shadow:0 1px 8px rgba(25,24,59,.08) !important; flex-direction:row !important; align-items:center !important; gap:5px !important; overflow-x:auto !important; overflow-y:hidden !important; -webkit-overflow-scrolling:touch !important; scrollbar-width:none !important; }
                 nav::-webkit-scrollbar { display:none; }
                 nav::before { display:none !important; }
+                .gang-ps-mode-badge { flex:0 0 auto; margin:0 4px 0 0; }
                 #gang-ps-sidebar-toggle { display:none !important; }
                 nav a { flex:0 0 auto !important; white-space:nowrap !important; padding:9px 12px !important; min-height:40px !important; box-sizing:border-box !important; display:flex !important; align-items:center !important; justify-content:center !important; font-size:.82rem !important; line-height:1.2 !important; touch-action:manipulation !important; }
                 .gang-ps-nav-icon { display:none !important; }
