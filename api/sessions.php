@@ -15,7 +15,8 @@ function formatDurationMs(int $ms): string { $ms=max(0,$ms); $seconds=(int)floor
 // Master memakai localhost. Koneksi remote melalui Tailscale = Client.
 function isMasterRequest(): bool {
     $remote=strtolower(trim((string)($_SERVER['REMOTE_ADDR']??'')));
-    return in_array($remote,['127.0.0.1','::1'],true);
+    // PHP/Nginx kadang mengirim IPv4 localhost dalam format IPv4-mapped IPv6.
+    return in_array($remote,['127.0.0.1','::1','::ffff:127.0.0.1'],true);
 }
 
 function sessionForClient(array $row): array {
