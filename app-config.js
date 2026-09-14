@@ -1,8 +1,27 @@
 //======== PC Mode ========
-// Nilai ini hanya fallback awal. Mode authoritative berasal dari API server.
-window.GANG_PS_CONFIG = Object.freeze({
-    mode: 'master'
-});
+// Mode disimpan per-browser agar PC Master dan PC Client bisa dibedakan walau memakai IP/Tailscale yang sama.
+(() => {
+    const STORAGE_KEY = 'gangPsPcMode';
+    const params = new URLSearchParams(window.location.search);
+    const requestedMode = String(params.get('pc') || '').toLowerCase();
+    const storedMode = String(localStorage.getItem(STORAGE_KEY) || '').toLowerCase();
+    const initialMode = requestedMode === 'client' || requestedMode === 'master'
+        ? requestedMode
+        : (storedMode === 'client' || storedMode === 'master' ? storedMode : 'master');
+
+    if (requestedMode === 'client' || requestedMode === 'master') {
+        localStorage.setItem(STORAGE_KEY, requestedMode);
+    }
+
+    window.GANG_PS_CONFIG = Object.freeze({
+        mode: initialMode
+    });
+
+    window.gangPsGetLocalMode = () => {
+        const mode = String(localStorage.getItem(STORAGE_KEY) || window.GANG_PS_CONFIG.mode || 'master').toLowerCase();
+        return mode === 'client' ? 'client' : 'master';
+    };
+})();
 
 //======== Server Mode Controller ========
 (() => {
@@ -23,16 +42,14 @@ window.GANG_PS_CONFIG = Object.freeze({
         });
 
         const badge = document.querySelector('.gang-ps-client-badge');
-        if (badge) {
-            badge.style.display = isClient ? 'block' : 'none';
-        }
+        if (badge) badge.style.display = isClient ? 'block' : 'none';
     }
 
     window.gangPsApplyServerMode = applyMode;
 
-    //======== Initial Fallback ========
+    //======== Initial Local Mode ========
     document.addEventListener('DOMContentLoaded', () => {
-        applyMode(window.GANG_PS_CONFIG.mode);
+        applyMode(window.gangPsGetLocalMode ? window.gangPsGetLocalMode() : window.GANG_PS_CONFIG.mode);
     });
 
     //======== Client Write Guard ========
