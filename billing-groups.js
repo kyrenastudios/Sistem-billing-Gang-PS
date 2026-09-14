@@ -17,8 +17,8 @@ document.addEventListener('DOMContentLoaded', () => {
         .billing-group-grid .console-card .timer { margin:4px 0 6px; font-size:1.35em; line-height:1.2; }
         .billing-group-grid .console-card > p { margin:5px 0; line-height:1.25; }
         .billing-group-grid .console-card .session-details { margin:4px 0; font-size:.85rem; line-height:1.25; }
-        .billing-group-grid .console-card .card-actions { margin-top:auto; padding-top:6px; display:flex; flex-wrap:wrap; justify-content:center; gap:4px; }
-        .billing-group-grid .console-card .card-actions button { margin:0; padding:7px 9px; font-size:.82rem; min-height:36px; touch-action:manipulation; }
+        .billing-group-grid .console-card .card-actions { margin-top:auto; padding-top:6px; display:flex; flex-wrap:wrap; justify-content:center; gap:4px; position:relative; z-index:10; pointer-events:auto; }
+        .billing-group-grid .console-card .card-actions button { margin:0; padding:7px 9px; font-size:.82rem; min-height:36px; touch-action:manipulation; position:relative; z-index:11; pointer-events:auto; }
         @media (max-width:1000px) { .billing-group-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; } }
         @media (max-width:760px) {
             .billing-console-group { margin-bottom:22px; }
