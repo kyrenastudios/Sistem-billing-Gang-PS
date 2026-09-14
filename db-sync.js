@@ -2,42 +2,20 @@
     //======== Database Sync ========
     const DB_SYNC_URL = 'api/sync.php';
     const HISTORY_SYNC_URL = 'api/history.php';
-    const KEYS = ['members', 'customPackages', 'history'];
+    const KEYS = ['members', 'customPackages'];
     const MASTER_KEYS = ['members', 'customPackages'];
     const INIT_KEY = 'gangPsDbInitialized';
-    const MENU_KEY = 'menuItems';
-    const MENU_API_URL = 'api/menu.php';
 
     let applyingDatabase = false;
     let syncTimer = null;
     let syncInProgress = false;
     let syncQueued = false;
+    let historyCache = [];
 
     const storage = window.localStorage;
     const originalGetItem = Storage.prototype.getItem;
     const originalSetItem = Storage.prototype.setItem;
     const originalRemoveItem = Storage.prototype.removeItem;
-
-    function loadMenuFromApiSync() {
-        try {
-            const xhr = new XMLHttpRequest();
-            xhr.open('GET', `${MENU_API_URL}?t=${Date.now()}`, false);
-            xhr.setRequestHeader('Accept', 'application/json');
-            xhr.send();
-
-            if (xhr.status < 200 || xhr.status >= 300) {
-                console.warn(`Menu API gagal HTTP ${xhr.status}.`);
-                return '[]';
-            }
-
-            const result = JSON.parse(xhr.responseText);
-            if (!result.success || !Array.isArray(result.data)) return '[]';
-            return JSON.stringify(result.data);
-        } catch (error) {
-            console.warn('Menu API gagal dibaca:', error);
-            return '[]';
-        }
-    }
 
     function readArray(key) {
         try {
@@ -67,7 +45,7 @@
         originalSetItem.call(storage, key, JSON.stringify(value));
     }
 
-    function applyDatabaseState(result, includeHistory = true) {
+    function applyDatabaseState(result) {
         if (!result || !result.success || !result.data) return;
         applyingDatabase = true;
         try {
@@ -75,7 +53,7 @@
             applyArrayIfSafe('consoles', data.consoles);
             applyArrayIfSafe('members', data.members);
             applyArrayIfSafe('customPackages', data.customPackages);
-            if (includeHistory) applyArrayIfSafe('history', data.history);
+            if (Array.isArray(data.history)) historyCache = data.history;
         } finally {
             applyingDatabase = false;
         }
@@ -90,45 +68,32 @@
             if (xhr.status < 200 || xhr.status >= 300) throw new Error(`HTTP ${xhr.status}`);
             return JSON.parse(xhr.responseText);
         } catch (error) {
-            console.warn('DB Sync: gagal membaca MySQL, data non-menu tetap menggunakan cache.', error);
+            console.warn('DB Sync: gagal membaca MySQL. History tidak menggunakan localStorage.', error);
             return null;
         }
     }
 
     async function postJson(url, payload) {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
+        const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         const text = await response.text();
         let result = null;
-        try {
-            result = JSON.parse(text);
-        } catch (error) {
-            throw new Error(`HTTP ${response.status}: respons server bukan JSON: ${text.slice(0, 300)}`);
-        }
-        if (!response.ok || !result.success) {
-            throw new Error(result.error || result.message || `HTTP ${response.status}`);
-        }
+        try { result = JSON.parse(text); } catch (error) { throw new Error(`HTTP ${response.status}: respons server bukan JSON: ${text.slice(0, 300)}`); }
+        if (!response.ok || !result.success) throw new Error(result.error || result.message || `HTTP ${response.status}`);
         return result;
     }
 
     async function postMasterSnapshot(snapshot) {
         if (Object.keys(snapshot).length === 0) return true;
-        try {
-            await postJson(DB_SYNC_URL, snapshot);
-            return true;
-        } catch (error) {
-            console.error('DB Sync: gagal menulis master data ke MySQL:', error);
-            return false;
-        }
+        try { await postJson(DB_SYNC_URL, snapshot); return true; }
+        catch (error) { console.error('DB Sync: gagal menulis master data ke MySQL:', error); return false; }
     }
 
     async function postHistorySnapshot(history) {
         if (!Array.isArray(history)) return true;
+        if (String(window.gangPsServerMode || '').toLowerCase() === 'client') return false;
         try {
-            await postJson(HISTORY_SYNC_URL, { history });
+            const result = await postJson(HISTORY_SYNC_URL, { history });
+            if (result && result.data && Array.isArray(result.data)) historyCache = result.data;
             return true;
         } catch (error) {
             console.error('DB Sync: gagal menulis history ke MySQL:', error);
@@ -137,24 +102,14 @@
     }
 
     async function syncNow() {
-        if (syncInProgress) {
-            syncQueued = true;
-            return;
-        }
+        if (syncInProgress) { syncQueued = true; return; }
         syncInProgress = true;
         try {
             const masterSnapshot = buildSnapshot(MASTER_KEYS, true);
-            const history = readArray('history');
-            await Promise.all([
-                postMasterSnapshot(masterSnapshot),
-                postHistorySnapshot(history)
-            ]);
+            await postMasterSnapshot(masterSnapshot);
         } finally {
             syncInProgress = false;
-            if (syncQueued) {
-                syncQueued = false;
-                scheduleSync();
-            }
+            if (syncQueued) { syncQueued = false; scheduleSync(); }
         }
     }
 
@@ -166,59 +121,32 @@
 
     //======== Initial Database Load ========
     const databaseState = requestDatabaseSyncSync();
-    const initialized = originalGetItem.call(storage, INIT_KEY) === '1';
-
-    if (!initialized) {
-        const masterSnapshot = buildSnapshot(MASTER_KEYS, false);
-        const history = readArray('history');
-        let migrated = false;
-
-        if (Object.keys(masterSnapshot).length > 0) {
-            try {
-                const xhr = new XMLHttpRequest();
-                xhr.open('POST', DB_SYNC_URL, false);
-                xhr.setRequestHeader('Content-Type', 'application/json');
-                xhr.send(JSON.stringify(masterSnapshot));
-                migrated = xhr.status >= 200 && xhr.status < 300;
-                if (!migrated) console.warn('DB Sync: migrasi master gagal HTTP', xhr.status, xhr.responseText);
-            } catch (error) {
-                console.warn('DB Sync: migrasi master gagal.', error);
-            }
-        }
-
-        if (Array.isArray(history) && history.length > 0) {
-            try {
-                const xhr = new XMLHttpRequest();
-                xhr.open('POST', HISTORY_SYNC_URL, false);
-                xhr.setRequestHeader('Content-Type', 'application/json');
-                xhr.send(JSON.stringify({ history }));
-                migrated = migrated || (xhr.status >= 200 && xhr.status < 300);
-                if (xhr.status < 200 || xhr.status >= 300) console.warn('DB Sync: migrasi history gagal HTTP', xhr.status, xhr.responseText);
-            } catch (error) {
-                console.warn('DB Sync: migrasi history gagal.', error);
-            }
-        }
-
-        if (!migrated && databaseState) applyDatabaseState(databaseState, true);
-        originalSetItem.call(storage, INIT_KEY, '1');
-    } else if (databaseState) {
-        applyDatabaseState(databaseState, true);
-    }
+    if (databaseState) applyDatabaseState(databaseState);
+    originalSetItem.call(storage, INIT_KEY, '1');
 
     //======== Storage Watcher ========
     Storage.prototype.getItem = function(key) {
-        if (key === MENU_KEY) return loadMenuFromApiSync();
+        if (key === 'history') return JSON.stringify(historyCache);
         return originalGetItem.call(this, key);
     };
 
     Storage.prototype.setItem = function(key, value) {
-        if (key === MENU_KEY) return;
+        if (key === 'history') {
+            try {
+                const parsed = JSON.parse(value);
+                if (Array.isArray(parsed)) {
+                    historyCache = parsed;
+                    if (!applyingDatabase && String(window.gangPsServerMode || '').toLowerCase() !== 'client') postHistorySnapshot(historyCache);
+                }
+            } catch (error) { console.warn('DB Sync: history baru tidak valid.', error); }
+            return;
+        }
         originalSetItem.call(this, key, value);
         if (!applyingDatabase && KEYS.includes(key)) scheduleSync();
     };
 
     Storage.prototype.removeItem = function(key) {
-        if (key === MENU_KEY) return;
+        if (key === 'history') return;
         originalRemoveItem.call(this, key);
         if (!applyingDatabase && KEYS.includes(key)) scheduleSync();
     };
@@ -226,9 +154,10 @@
     window.gangPsDbSync = {
         refresh: () => {
             const state = requestDatabaseSyncSync();
-            if (state) applyDatabaseState(state, true);
+            if (state) applyDatabaseState(state);
             return state;
         },
-        push: () => syncNow()
+        push: () => syncNow(),
+        getHistory: () => historyCache.slice()
     };
 })();
