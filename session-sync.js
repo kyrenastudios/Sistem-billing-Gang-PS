@@ -3,6 +3,7 @@
     const SESSION_API_URL = 'api/sessions.php';
     const originalSetItem = Storage.prototype.setItem;
     const POLL_MS = 2000;
+    const isMaster = String(window.GANG_PS_CONFIG?.mode || 'master').toLowerCase() === 'master';
     let saveTimer = null;
     let pollTimer = null;
     let inProgress = false;
@@ -57,6 +58,7 @@
     }
 
     async function push(consoles) {
+        if (!isMaster) return refresh();
         const payload = Array.isArray(consoles) ? consoles : [];
         const signature = JSON.stringify(payload);
         lastSavedSignature = signature;
@@ -68,7 +70,7 @@
         try {
             const response = await fetch(SESSION_API_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'X-Gang-PS-Mode': 'master' },
                 credentials: 'same-origin',
                 body: JSON.stringify({ consoles: payload })
             });
@@ -94,6 +96,7 @@
     }
 
     function save(consoles) {
+        if (!isMaster) return Promise.resolve();
         clearTimeout(saveTimer);
         saveTimer = setTimeout(() => push(consoles).catch(() => {}), 80);
         return Promise.resolve();
@@ -114,6 +117,6 @@
         }
     };
 
-    window.gangPsSessionSync = { refresh, save, push };
+    window.gangPsSessionSync = { refresh, save, push, isMaster };
     refresh().catch(() => {}).finally(schedulePoll);
 })();
