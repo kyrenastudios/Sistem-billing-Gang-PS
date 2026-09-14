@@ -11,14 +11,6 @@ function dbMs($value): ?int { if($value===null||$value==='') return null; $ts=st
 function calculateOpenCost(float $hourlyPrice,int $startMs,int $pausedMs): float { $elapsed=max(0,time()*1000-$startMs-$pausedMs); return round(($hourlyPrice/60)*ceil($elapsed/60000)); }
 function formatDurationMs(int $ms): string { $ms=max(0,$ms); $seconds=(int)floor($ms/1000); $hours=(int)floor($seconds/3600); $minutes=(int)floor(($seconds%3600)/60); $secs=$seconds%60; return sprintf('%02d:%02d:%02d',$hours,$minutes,$secs); }
 
-//======== PC Access ========
-// Master memakai localhost. Koneksi remote melalui Tailscale = Client.
-function isMasterRequest(): bool {
-    $remote=strtolower(trim((string)($_SERVER['REMOTE_ADDR']??'')));
-    // PHP/Nginx kadang mengirim IPv4 localhost dalam format IPv4-mapped IPv6.
-    return in_array($remote,['127.0.0.1','::1','::ffff:127.0.0.1'],true);
-}
-
 function sessionForClient(array $row): array {
     $orders=[];
     if(!empty($row['orders_json'])) { $decoded=json_decode((string)$row['orders_json'],true); if(is_array($decoded)) $orders=$decoded; }
@@ -42,11 +34,11 @@ try {
     try { $pdo->exec("ALTER TABLE sessions ADD COLUMN pause_time DATETIME NULL"); } catch (PDOException $e) {}
 
     //======== Read Active Sessions ========
-    if($_SERVER['REQUEST_METHOD']==='GET') response(['success'=>true,'data'=>fetchServerTruth($pdo),'mode'=>isMasterRequest()?'master':'client']);
+    if($_SERVER['REQUEST_METHOD']==='GET') response(['success'=>true,'data'=>fetchServerTruth($pdo),'mode'=>gangPsIsMasterRequest()?'master':'client']);
 
     //======== Master Write Guard ========
     if($_SERVER['REQUEST_METHOD']!=='POST') response(['success'=>false,'message'=>'Method tidak didukung.'],405);
-    if(!isMasterRequest()) response(['success'=>false,'message'=>'PC CLIENT hanya memiliki akses baca.'],403);
+    if(!gangPsIsMasterRequest()) response(['success'=>false,'message'=>'PC CLIENT hanya memiliki akses baca.'],403);
     $data=readJson();
     if(!isset($data['consoles']) || !is_array($data['consoles'])) response(['success'=>false,'message'=>'Data consoles tidak valid.'],400);
 
