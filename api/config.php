@@ -82,30 +82,15 @@ function db(): PDO
 }
 
 //======== PC Mode ========
-// Localhost dan alamat IP milik PC server sendiri = Master.
-// PC lain yang mengakses server melalui LAN/Tailscale = Client.
+// Browser mengirim mode lokal per-PC. Loopback tetap otomatis Master untuk kompatibilitas.
 function gangPsIsMasterRequest(): bool
 {
+    $mode = strtolower(trim((string) ($_SERVER['HTTP_X_GANG_PS_MODE'] ?? '')));
+    if ($mode === 'master') return true;
+    if ($mode === 'client') return false;
+
     $remote = strtolower(trim((string) ($_SERVER['REMOTE_ADDR'] ?? '')));
-
-    if (in_array($remote, ['127.0.0.1', '::1', '::ffff:127.0.0.1'], true)) {
-        return true;
-    }
-
-    //======== Detect Local Server Addresses ========
-    $localAddresses = [];
-    $serverAddress = strtolower(trim((string) ($_SERVER['SERVER_ADDR'] ?? '')));
-    if ($serverAddress !== '') $localAddresses[] = $serverAddress;
-
-    $hostname = gethostname();
-    if ($hostname) {
-        $resolved = gethostbynamel($hostname);
-        if (is_array($resolved)) {
-            $localAddresses = array_merge($localAddresses, array_map('strtolower', $resolved));
-        }
-    }
-
-    return in_array($remote, array_unique($localAddresses), true);
+    return in_array($remote, ['127.0.0.1', '::1', '::ffff:127.0.0.1'], true);
 }
 
 function requireMaster(): void
