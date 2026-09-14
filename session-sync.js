@@ -15,6 +15,15 @@
         try { const parsed = JSON.parse(value); return parsed; } catch (_) { return fallback; }
     }
 
+    function localMode() {
+        if (typeof window.gangPsGetLocalMode === 'function') return window.gangPsGetLocalMode();
+        return window.GANG_PS_CONFIG && window.GANG_PS_CONFIG.mode === 'client' ? 'client' : 'master';
+    }
+
+    function modeHeaders() {
+        return { 'X-Gang-PS-Mode': localMode() };
+    }
+
     function applyServerMode(mode) {
         serverMode = mode === 'master' ? 'master' : 'client';
         window.gangPsServerMode = serverMode;
@@ -39,7 +48,12 @@
         if (inProgress) return;
         inProgress = true;
         try {
-            const response = await fetch(`${SESSION_API_URL}?t=${Date.now()}`, { method:'GET', credentials:'same-origin', cache:'no-store' });
+            const response = await fetch(`${SESSION_API_URL}?t=${Date.now()}`, {
+                method:'GET',
+                headers:modeHeaders(),
+                credentials:'same-origin',
+                cache:'no-store'
+            });
             const result = await response.json();
             if (!response.ok || !result.success) throw new Error(result.error || result.message || `HTTP ${response.status}`);
             applyServerMode(result.mode);
@@ -59,14 +73,19 @@
     }
 
     async function push(consoles) {
-        if (serverMode !== 'master') return refresh();
+        if (localMode() !== 'master') return refresh();
         const payload = Array.isArray(consoles) ? consoles : [];
         const signature = JSON.stringify(payload);
         lastSavedSignature = signature;
         if (inProgress) { queuedSave = payload; return; }
         inProgress = true;
         try {
-            const response = await fetch(SESSION_API_URL, { method:'POST', headers:{'Content-Type':'application/json','X-Gang-PS-Mode':'master'}, credentials:'same-origin', body:JSON.stringify({consoles:payload}) });
+            const response = await fetch(SESSION_API_URL, {
+                method:'POST',
+                headers:{'Content-Type':'application/json',...modeHeaders()},
+                credentials:'same-origin',
+                body:JSON.stringify({consoles:payload})
+            });
             const result = await response.json();
             if (!response.ok || !result.success) throw new Error(result.error || result.message || `HTTP ${response.status}`);
             applyServerMode(result.mode || 'master');
@@ -86,7 +105,7 @@
     }
 
     function save(consoles) {
-        if (serverMode !== 'master') return Promise.resolve();
+        if (localMode() !== 'master') return Promise.resolve();
         clearTimeout(saveTimer);
         saveTimer = setTimeout(() => push(consoles).catch(() => {}), 80);
         return Promise.resolve();
@@ -104,6 +123,6 @@
         }
     };
 
-    window.gangPsSessionSync = { refresh, save, push, isMaster:() => serverMode === 'master' };
+    window.gangPsSessionSync = { refresh, save, push, isMaster:() => localMode() === 'master' };
     refresh().catch(() => {}).finally(schedulePoll);
 })();
