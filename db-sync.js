@@ -26,6 +26,13 @@
         return window.GANG_PS_CONFIG && window.GANG_PS_CONFIG.mode === 'client' ? 'client' : 'master';
     }
 
+    function getLocalDateString(date = new Date()) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
     function readArray(key) {
         try {
             const value = originalGetItem.call(storage, key);
@@ -141,7 +148,7 @@
             if (historySyncQueued) {
                 historySyncQueued = false;
                 if (Array.isArray(historySyncLatest) && JSON.stringify(historySyncLatest) !== JSON.stringify(snapshot)) {
-                    scheduleHistorySync();
+                    scheduleHistorySync(historySyncLatest);
                 }
             }
         }
@@ -188,7 +195,15 @@
             try {
                 const parsed = JSON.parse(value);
                 if (Array.isArray(parsed)) {
-                    historyCache = parsed;
+                    const previousLength = historyCache.length;
+                    const normalized = parsed.slice();
+                    if (!applyingDatabase && normalized.length > previousLength) {
+                        const localDate = getLocalDateString();
+                        for (let i = previousLength; i < normalized.length; i++) {
+                            if (normalized[i] && typeof normalized[i] === 'object') normalized[i] = { ...normalized[i], date: localDate };
+                        }
+                    }
+                    historyCache = normalized;
                     if (!applyingDatabase) scheduleHistorySync(historyCache);
                 }
             } catch (error) {
