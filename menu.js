@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const editName = document.getElementById('edit-item-name');
     const editPrice = document.getElementById('edit-item-price');
     const editCancel = document.getElementById('edit-menu-cancel');
-    const editSave = document.getElementById('menu-edit-save');
+    const editSave = document.getElementById('edit-menu-save');
     let editingItemId = null;
 
     //======== Menu API ========
