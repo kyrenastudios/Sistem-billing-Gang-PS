@@ -3,16 +3,22 @@
     const SESSION_API_URL = 'api/sessions.php';
     const originalSetItem = Storage.prototype.setItem;
     const POLL_MS = 2000;
-    const isMaster = String(window.GANG_PS_CONFIG?.mode || 'master').toLowerCase() === 'master';
     let saveTimer = null;
     let pollTimer = null;
     let inProgress = false;
     let queuedSave = null;
     let applyingRemote = false;
     let lastSavedSignature = '';
+    let serverMode = 'client';
 
     function safeParse(value, fallback) {
         try { const parsed = JSON.parse(value); return parsed; } catch (_) { return fallback; }
+    }
+
+    function applyServerMode(mode) {
+        serverMode = mode === 'master' ? 'master' : 'client';
+        window.gangPsServerMode = serverMode;
+        if (typeof window.gangPsApplyServerMode === 'function') window.gangPsApplyServerMode(serverMode);
     }
 
     function mergeSessions(remoteConsoles) {
@@ -33,13 +39,10 @@
         if (inProgress) return;
         inProgress = true;
         try {
-            const response = await fetch(`${SESSION_API_URL}?t=${Date.now()}`, {
-                method: 'GET',
-                credentials: 'same-origin',
-                cache: 'no-store'
-            });
+            const response = await fetch(`${SESSION_API_URL}?t=${Date.now()}`, { method:'GET', credentials:'same-origin', cache:'no-store' });
             const result = await response.json();
             if (!response.ok || !result.success) throw new Error(result.error || result.message || `HTTP ${response.status}`);
+            applyServerMode(result.mode);
             const remote = mergeSessions(result.data);
             const signature = JSON.stringify(remote);
             if (signature !== lastSavedSignature) {
@@ -52,30 +55,21 @@
         } catch (error) {
             console.error('Gagal memuat session dari MySQL:', error);
             throw error;
-        } finally {
-            inProgress = false;
-        }
+        } finally { inProgress = false; }
     }
 
     async function push(consoles) {
-        if (!isMaster) return refresh();
+        if (serverMode !== 'master') return refresh();
         const payload = Array.isArray(consoles) ? consoles : [];
         const signature = JSON.stringify(payload);
         lastSavedSignature = signature;
-        if (inProgress) {
-            queuedSave = payload;
-            return;
-        }
+        if (inProgress) { queuedSave = payload; return; }
         inProgress = true;
         try {
-            const response = await fetch(SESSION_API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-Gang-PS-Mode': 'master' },
-                credentials: 'same-origin',
-                body: JSON.stringify({ consoles: payload })
-            });
+            const response = await fetch(SESSION_API_URL, { method:'POST', headers:{'Content-Type':'application/json','X-Gang-PS-Mode':'master'}, credentials:'same-origin', body:JSON.stringify({consoles:payload}) });
             const result = await response.json();
             if (!response.ok || !result.success) throw new Error(result.error || result.message || `HTTP ${response.status}`);
+            applyServerMode(result.mode || 'master');
             const remote = mergeSessions(result.data || payload);
             applyingRemote = true;
             try { localStorage.setItem('consoles', JSON.stringify(remote)); } finally { applyingRemote = false; }
@@ -87,16 +81,12 @@
             throw error;
         } finally {
             inProgress = false;
-            if (queuedSave) {
-                const next = queuedSave;
-                queuedSave = null;
-                push(next).catch(() => {});
-            }
+            if (queuedSave) { const next=queuedSave; queuedSave=null; push(next).catch(()=>{}); }
         }
     }
 
     function save(consoles) {
-        if (!isMaster) return Promise.resolve();
+        if (serverMode !== 'master') return Promise.resolve();
         clearTimeout(saveTimer);
         saveTimer = setTimeout(() => push(consoles).catch(() => {}), 80);
         return Promise.resolve();
@@ -104,10 +94,7 @@
 
     function schedulePoll() {
         clearTimeout(pollTimer);
-        pollTimer = setTimeout(async () => {
-            await refresh().catch(() => {});
-            schedulePoll();
-        }, POLL_MS);
+        pollTimer = setTimeout(async () => { await refresh().catch(() => {}); schedulePoll(); }, POLL_MS);
     }
 
     Storage.prototype.setItem = function(key, value) {
@@ -117,6 +104,6 @@
         }
     };
 
-    window.gangPsSessionSync = { refresh, save, push, isMaster };
+    window.gangPsSessionSync = { refresh, save, push, isMaster:() => serverMode === 'master' };
     refresh().catch(() => {}).finally(schedulePoll);
 })();
