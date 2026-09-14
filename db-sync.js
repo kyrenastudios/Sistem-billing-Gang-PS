@@ -11,11 +11,20 @@
     let syncInProgress = false;
     let syncQueued = false;
     let historyCache = [];
+    let historySyncTimer = null;
+    let historySyncInProgress = false;
+    let historySyncQueued = false;
+    let historySyncLatest = null;
 
     const storage = window.localStorage;
     const originalGetItem = Storage.prototype.getItem;
     const originalSetItem = Storage.prototype.setItem;
     const originalRemoveItem = Storage.prototype.removeItem;
+
+    function localMode() {
+        if (typeof window.gangPsGetLocalMode === 'function') return window.gangPsGetLocalMode();
+        return window.GANG_PS_CONFIG && window.GANG_PS_CONFIG.mode === 'client' ? 'client' : 'master';
+    }
 
     function readArray(key) {
         try {
@@ -74,7 +83,18 @@
     }
 
     async function postJson(url, payload) {
-        const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-Gang-PS-Mode': localMode()
+        };
+        const response = await fetch(url, {
+            method: 'POST',
+            headers,
+            credentials: 'same-origin',
+            cache: 'no-store',
+            body: JSON.stringify(payload)
+        });
         const text = await response.text();
         let result = null;
         try { result = JSON.parse(text); } catch (error) { throw new Error(`HTTP ${response.status}: respons server bukan JSON: ${text.slice(0, 300)}`); }
@@ -83,22 +103,55 @@
     }
 
     async function postMasterSnapshot(snapshot) {
-        if (Object.keys(snapshot).length === 0) return true;
-        try { await postJson(DB_SYNC_URL, snapshot); return true; }
-        catch (error) { console.error('DB Sync: gagal menulis master data ke MySQL:', error); return false; }
+        if (Object.keys(snapshot).length === 0 || localMode() === 'client') return true;
+        try {
+            await postJson(DB_SYNC_URL, snapshot);
+            return true;
+        } catch (error) {
+            console.error('DB Sync: gagal menulis master data ke MySQL:', error);
+            return false;
+        }
     }
 
     async function postHistorySnapshot(history) {
-        if (!Array.isArray(history)) return true;
-        if (String(window.gangPsServerMode || '').toLowerCase() === 'client') return false;
+        if (!Array.isArray(history) || localMode() === 'client') return false;
         try {
             const result = await postJson(HISTORY_SYNC_URL, { history });
             if (result && result.data && Array.isArray(result.data)) historyCache = result.data;
+            console.log(`DB Sync: history tersimpan ke MySQL (${history.length} transaksi).`);
             return true;
         } catch (error) {
             console.error('DB Sync: gagal menulis history ke MySQL:', error);
             return false;
         }
+    }
+
+    async function flushHistorySync() {
+        if (historySyncInProgress) {
+            historySyncQueued = true;
+            return;
+        }
+        if (!Array.isArray(historySyncLatest)) return;
+        historySyncInProgress = true;
+        const snapshot = historySyncLatest.slice();
+        try {
+            await postHistorySnapshot(snapshot);
+        } finally {
+            historySyncInProgress = false;
+            if (historySyncQueued) {
+                historySyncQueued = false;
+                if (Array.isArray(historySyncLatest) && JSON.stringify(historySyncLatest) !== JSON.stringify(snapshot)) {
+                    scheduleHistorySync();
+                }
+            }
+        }
+    }
+
+    function scheduleHistorySync(history) {
+        if (!Array.isArray(history) || localMode() === 'client') return;
+        historySyncLatest = history.slice();
+        clearTimeout(historySyncTimer);
+        historySyncTimer = setTimeout(flushHistorySync, 100);
     }
 
     async function syncNow() {
@@ -136,9 +189,11 @@
                 const parsed = JSON.parse(value);
                 if (Array.isArray(parsed)) {
                     historyCache = parsed;
-                    if (!applyingDatabase && String(window.gangPsServerMode || '').toLowerCase() !== 'client') postHistorySnapshot(historyCache);
+                    if (!applyingDatabase) scheduleHistorySync(historyCache);
                 }
-            } catch (error) { console.warn('DB Sync: history baru tidak valid.', error); }
+            } catch (error) {
+                console.warn('DB Sync: history baru tidak valid.', error);
+            }
             return;
         }
         originalSetItem.call(this, key, value);
@@ -158,6 +213,7 @@
             return state;
         },
         push: () => syncNow(),
+        pushHistory: () => flushHistorySync(),
         getHistory: () => historyCache.slice()
     };
 })();
