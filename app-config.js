@@ -6,8 +6,7 @@
     const hostname = String(window.location.hostname || '').toLowerCase();
     const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname === '[::1]';
 
-    // URL ?pc=master/client hanya untuk override manual/testing.
-    // Tanpa override: localhost = MASTER, selain localhost = CLIENT.
+    //======== Mode ========
     const detectedMode = isLocalHost ? 'master' : 'client';
     const initialMode = requestedMode === 'client' || requestedMode === 'master'
         ? requestedMode
@@ -15,8 +14,6 @@
 
     window.GANG_PS_CONFIG = Object.freeze({ mode: initialMode });
 
-    //======== Mode Source ========
-    // Satu sumber mode dipakai badge, billing, dan sync.
     window.gangPsGetLocalMode = () => window.GANG_PS_CONFIG.mode;
 
     //======== Billing Controls ========
@@ -41,8 +38,14 @@
     ];
     const masterOnlySelector = masterOnlySelectors.join(',');
 
+    // Selector harus di-scope satu per satu agar tidak ada selector yang terlepas dari .gang-ps-client.
+    const clientOnlySelector = masterOnlySelectors
+        .map(selector => `.gang-ps-client ${selector}`)
+        .join(',');
+
     function applyPcMode() {
         const isClient = window.GANG_PS_CONFIG.mode === 'client';
+
         document.body.classList.toggle('gang-ps-master', !isClient);
         document.body.classList.toggle('gang-ps-client', isClient);
 
@@ -56,16 +59,10 @@
     window.gangPsApplyPcMode = applyPcMode;
     document.addEventListener('DOMContentLoaded', applyPcMode);
 
-    //======== PC Mode Style ========
+    //======== Client Button Style ========
     const style = document.createElement('style');
     style.textContent = `
-        .gang-ps-master ${masterOnlySelector} {
-            pointer-events:auto!important;
-            cursor:pointer!important;
-        }
-
-        .gang-ps-client .gang-ps-readonly-control,
-        .gang-ps-client ${masterOnlySelector} {
+        ${clientOnlySelector} {
             pointer-events:none!important;
             opacity:.45!important;
             cursor:not-allowed!important;
