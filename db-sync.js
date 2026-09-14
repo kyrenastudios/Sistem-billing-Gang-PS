@@ -4,8 +4,9 @@
     const HISTORY_SYNC_URL = 'api/history.php';
     const KEYS = ['members', 'customPackages', 'history'];
     const MASTER_KEYS = ['members', 'customPackages'];
-    const MENU_KEY = 'menuItems';
     const INIT_KEY = 'gangPsDbInitialized';
+    const MENU_KEY = 'menuItems';
+    const MENU_API_URL = 'api/menu.php';
 
     let applyingDatabase = false;
     let syncTimer = null;
@@ -13,12 +14,34 @@
     let syncQueued = false;
 
     const storage = window.localStorage;
+    const originalGetItem = Storage.prototype.getItem;
     const originalSetItem = Storage.prototype.setItem;
     const originalRemoveItem = Storage.prototype.removeItem;
 
+    function loadMenuFromApiSync() {
+        try {
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', `${MENU_API_URL}?t=${Date.now()}`, false);
+            xhr.setRequestHeader('Accept', 'application/json');
+            xhr.send();
+
+            if (xhr.status < 200 || xhr.status >= 300) {
+                console.warn(`Menu API gagal HTTP ${xhr.status}.`);
+                return '[]';
+            }
+
+            const result = JSON.parse(xhr.responseText);
+            if (!result.success || !Array.isArray(result.data)) return '[]';
+            return JSON.stringify(result.data);
+        } catch (error) {
+            console.warn('Menu API gagal dibaca:', error);
+            return '[]';
+        }
+    }
+
     function readArray(key) {
         try {
-            const value = storage.getItem(key);
+            const value = originalGetItem.call(storage, key);
             if (!value) return null;
             const parsed = JSON.parse(value);
             return Array.isArray(parsed) ? parsed : null;
@@ -53,7 +76,6 @@
             applyArrayIfSafe('members', data.members);
             applyArrayIfSafe('customPackages', data.customPackages);
             if (includeHistory) applyArrayIfSafe('history', data.history);
-            applyArrayIfSafe(MENU_KEY, data.menuItems);
         } finally {
             applyingDatabase = false;
         }
@@ -68,7 +90,7 @@
             if (xhr.status < 200 || xhr.status >= 300) throw new Error(`HTTP ${xhr.status}`);
             return JSON.parse(xhr.responseText);
         } catch (error) {
-            console.warn('DB Sync: gagal membaca MySQL, web tetap menggunakan cache.', error);
+            console.warn('DB Sync: gagal membaca MySQL, data non-menu tetap menggunakan cache.', error);
             return null;
         }
     }
@@ -104,7 +126,6 @@
     }
 
     async function postHistorySnapshot(history) {
-        // History kosong tetap dikirim agar transaksi di MySQL ikut terhapus setelah user menghapus semuanya.
         if (!Array.isArray(history)) return true;
         try {
             await postJson(HISTORY_SYNC_URL, { history });
@@ -145,7 +166,7 @@
 
     //======== Initial Database Load ========
     const databaseState = requestDatabaseSyncSync();
-    const initialized = storage.getItem(INIT_KEY) === '1';
+    const initialized = originalGetItem.call(storage, INIT_KEY) === '1';
 
     if (!initialized) {
         const masterSnapshot = buildSnapshot(MASTER_KEYS, false);
@@ -185,12 +206,19 @@
     }
 
     //======== Storage Watcher ========
+    Storage.prototype.getItem = function(key) {
+        if (key === MENU_KEY) return loadMenuFromApiSync();
+        return originalGetItem.call(this, key);
+    };
+
     Storage.prototype.setItem = function(key, value) {
+        if (key === MENU_KEY) return;
         originalSetItem.call(this, key, value);
         if (!applyingDatabase && KEYS.includes(key)) scheduleSync();
     };
 
     Storage.prototype.removeItem = function(key) {
+        if (key === MENU_KEY) return;
         originalRemoveItem.call(this, key);
         if (!applyingDatabase && KEYS.includes(key)) scheduleSync();
     };
