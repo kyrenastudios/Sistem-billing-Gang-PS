@@ -48,6 +48,8 @@ try {
         response(['success' => false, 'message' => 'Method tidak didukung.'], 405);
     }
 
+    requireMaster();
+
     $data = readJson();
     $counts = $data['counts'] ?? null;
     if (!is_array($counts)) response(['success' => false, 'message' => 'Data jumlah konsol tidak valid.'], 400);
@@ -69,7 +71,7 @@ try {
             }
 
             $price = $type === 'PS3' ? 5000 : ($type === 'PS4' ? 8000 : 13000);
-            $tv = $type === 'PS3' ? '32"' : ($type === 'PS4' ? '43"' : null);
+            $tv = $type === 'PS3' ? '32\"' : ($type === 'PS4' ? '43\"' : null);
 
             while (count($existing) < $wanted) {
                 $nextNumber = count($existing) + 1;
