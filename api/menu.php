@@ -35,6 +35,9 @@ try {
         jsonResponse(['success' => true, 'data' => $items]);
     }
 
+    //======== Semua perubahan menu hanya Master ========
+    requireMaster();
+
     //======== POST: Tambah menu ========
     if ($method === 'POST') {
         $raw = file_get_contents('php://input');
