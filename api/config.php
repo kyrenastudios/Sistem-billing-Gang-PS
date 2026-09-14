@@ -81,6 +81,21 @@ function db(): PDO
     return $pdo;
 }
 
+//======== PC Mode ========
+// Master hanya jika request berasal dari localhost pada PC utama.
+function isMasterRequest(): bool
+{
+    $remote = strtolower(trim((string) ($_SERVER['REMOTE_ADDR'] ?? '')));
+    return in_array($remote, ['127.0.0.1', '::1'], true);
+}
+
+function requireMaster(): void
+{
+    if (!isMasterRequest()) {
+        jsonResponse(['success' => false, 'message' => 'PC CLIENT hanya memiliki akses baca.'], 403);
+    }
+}
+
 function currentUser(): ?array
 {
     startAppSession();
