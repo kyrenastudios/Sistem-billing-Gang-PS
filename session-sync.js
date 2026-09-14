@@ -23,7 +23,7 @@
                 ...old,
                 ...remote,
                 session: remote.session || null,
-                status: remote.status || 'available'
+                status: old.status === 'booked' && remote.status === 'available' ? 'booked' : (remote.status || 'available')
             };
         });
     }
