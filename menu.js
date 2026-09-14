@@ -6,17 +6,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const editForm = document.getElementById('edit-menu-form');
     const editName = document.getElementById('edit-item-name');
     const editPrice = document.getElementById('edit-item-price');
-    const editCancel = document.getElementById('edit-menu-cancel');
-    const editSave = document.getElementById('edit-menu-save');
+    const editCancel = document.getElementById('menu-edit-cancel');
+    const editSave = document.getElementById('menu-edit-save');
     let editingItemId = null;
 
-    //======== API & Cache ========
+    //======== Menu API ========
     const MENU_API_URL = 'api/menu.php';
-    let menuItems = JSON.parse(localStorage.getItem('menuItems')) || [];
-
-    function saveMenuCache() {
-        localStorage.setItem('menuItems', JSON.stringify(menuItems));
-    }
+    let menuItems = [];
 
     function formatCurrency(amount) {
         return new Intl.NumberFormat('id-ID', {
@@ -33,20 +29,39 @@ document.addEventListener('DOMContentLoaded', () => {
         if (menuItems.length === 0) {
             noMenuItemsMessage.style.display = 'block';
             tableBody.style.display = 'none';
-        } else {
-            noMenuItemsMessage.style.display = 'none';
-            tableBody.style.display = '';
-
-            menuItems.forEach(item => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${item.name}</td>
-                    <td>${formatCurrency(item.price)}</td>
-                    <td><div class="menu-action"><button class="btn-edit-menu" data-id="${item.id}">Edit</button><button class="btn-delete" data-id="${item.id}">Hapus</button></div></td>
-                `;
-                tableBody.appendChild(row);
-            });
+            return;
         }
+
+        noMenuItemsMessage.style.display = 'none';
+        tableBody.style.display = '';
+
+        menuItems.forEach(item => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${item.name}</td>
+                <td>${formatCurrency(item.price)}</td>
+                <td><div class="menu-action"><button class="btn-edit-menu" data-id="${item.id}">Edit</button><button class="btn-delete" data-id="${item.id}">Hapus</button></div></td>
+            `;
+            tableBody.appendChild(row);
+        });
+    }
+
+    //======== Load MySQL ========
+    async function loadMenuFromAPI() {
+        const response = await fetch(`${MENU_API_URL}?t=${Date.now()}`, {
+            method: 'GET',
+            cache: 'no-store',
+            credentials: 'same-origin'
+        });
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+            throw new Error(result.message || result.error || `HTTP ${response.status}`);
+        }
+
+        menuItems = Array.isArray(result.data) ? result.data : [];
+        renderMenu();
+        return menuItems;
     }
 
     //======== Modal Edit ========
@@ -87,18 +102,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(`${MENU_API_URL}?id=${encodeURIComponent(editingItemId)}`, {
                 method: 'PUT',
                 headers: {'Content-Type': 'application/json'},
+                credentials: 'same-origin',
                 body: JSON.stringify({name, price})
             });
             const result = await response.json();
 
             if (!response.ok || !result.success) {
-                throw new Error(result.message || 'Gagal memperbarui menu.');
+                throw new Error(result.message || result.error || 'Gagal memperbarui menu.');
             }
 
-            const index = menuItems.findIndex(item => item.id === editingItemId);
-            if (index !== -1) menuItems[index] = result.data;
-            saveMenuCache();
-            renderMenu();
+            await loadMenuFromAPI();
             closeEditMenu();
         } catch (error) {
             console.error('Gagal memperbarui menu di MySQL:', error);
@@ -107,21 +120,6 @@ document.addEventListener('DOMContentLoaded', () => {
             editSave.disabled = false;
         }
     });
-
-    //======== Load dari MySQL ========
-    async function loadMenuFromAPI() {
-        try {
-            const response = await fetch(MENU_API_URL, {method: 'GET', cache: 'no-store'});
-            const result = await response.json();
-            if (!response.ok || !result.success) throw new Error(result.message || 'Gagal mengambil menu.');
-            menuItems = Array.isArray(result.data) ? result.data : [];
-            saveMenuCache();
-            renderMenu();
-        } catch (error) {
-            console.warn('MySQL API tidak tersedia. Menggunakan cache localStorage.', error);
-            renderMenu();
-        }
-    }
 
     //======== Tambah Menu ========
     form.addEventListener('submit', async e => {
@@ -136,13 +134,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const response = await fetch(MENU_API_URL, {
-                method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name, price})
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                credentials: 'same-origin',
+                body: JSON.stringify({name, price})
             });
             const result = await response.json();
-            if (!response.ok || !result.success) throw new Error(result.message || 'Gagal menambahkan menu.');
-            menuItems.push(result.data);
-            saveMenuCache();
-            renderMenu();
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || result.error || 'Gagal menambahkan menu.');
+            }
+
+            await loadMenuFromAPI();
             form.reset();
         } catch (error) {
             console.error('Gagal menyimpan menu ke MySQL:', error);
@@ -167,19 +169,28 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!confirmed) return;
 
         try {
-            const response = await fetch(`${MENU_API_URL}?id=${encodeURIComponent(itemId)}`, {method: 'DELETE'});
+            const response = await fetch(`${MENU_API_URL}?id=${encodeURIComponent(itemId)}`, {
+                method: 'DELETE',
+                credentials: 'same-origin'
+            });
             const result = await response.json();
-            if (!response.ok || !result.success) throw new Error(result.message || 'Gagal menghapus menu.');
-            menuItems = menuItems.filter(item => item.id !== itemId);
-            saveMenuCache();
-            renderMenu();
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || result.error || 'Gagal menghapus menu.');
+            }
+
+            await loadMenuFromAPI();
         } catch (error) {
             console.error('Gagal menghapus menu dari MySQL:', error);
             alert(error.message || 'Menu gagal dihapus dari database.');
         }
     });
 
-    //======== Tampilkan Cache Dulu, lalu Sinkronisasi MySQL ========
+    //======== Initial Load ========
     renderMenu();
-    loadMenuFromAPI();
+    loadMenuFromAPI().catch(error => {
+        console.error('Gagal memuat menu dari MySQL:', error);
+        noMenuItemsMessage.textContent = 'Gagal memuat menu dari database.';
+        noMenuItemsMessage.style.display = 'block';
+        tableBody.style.display = 'none';
+    });
 });
