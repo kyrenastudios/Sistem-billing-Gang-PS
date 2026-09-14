@@ -63,11 +63,15 @@
     window.gangPsApplyPcMode = applyPcMode;
     document.addEventListener('DOMContentLoaded', applyPcMode);
 
-    //======== Client Button Style ========
-    // CLIENT dikunci melalui disabled + CSS. Tidak ada global click/submit blocker,
-    // sehingga event handler billing MASTER tetap berjalan normal.
+    //======== PC Mode Style ========
+    // MASTER selalu menerima pointer event. CLIENT tetap dikunci.
     const style = document.createElement('style');
     style.textContent = `
+        .gang-ps-master ${masterOnlySelector} {
+            pointer-events:auto!important;
+            cursor:pointer!important;
+        }
+
         .gang-ps-client .gang-ps-readonly-control,
         .gang-ps-client ${masterOnlySelector} {
             pointer-events:none!important;
