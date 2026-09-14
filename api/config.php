@@ -82,13 +82,30 @@ function db(): PDO
 }
 
 //======== PC Mode ========
-// Master hanya jika request berasal dari localhost pada PC utama.
-// Nama helper dibuat unik agar tidak bentrok dengan api/sessions.php.
+// Localhost dan alamat IP milik PC server sendiri = Master.
+// PC lain yang mengakses server melalui LAN/Tailscale = Client.
 function gangPsIsMasterRequest(): bool
 {
     $remote = strtolower(trim((string) ($_SERVER['REMOTE_ADDR'] ?? '')));
-    // PHP/Nginx kadang mengirim IPv4 localhost dalam format IPv4-mapped IPv6.
-    return in_array($remote, ['127.0.0.1', '::1', '::ffff:127.0.0.1'], true);
+
+    if (in_array($remote, ['127.0.0.1', '::1', '::ffff:127.0.0.1'], true)) {
+        return true;
+    }
+
+    //======== Detect Local Server Addresses ========
+    $localAddresses = [];
+    $serverAddress = strtolower(trim((string) ($_SERVER['SERVER_ADDR'] ?? '')));
+    if ($serverAddress !== '') $localAddresses[] = $serverAddress;
+
+    $hostname = gethostname();
+    if ($hostname) {
+        $resolved = gethostbynamel($hostname);
+        if (is_array($resolved)) {
+            $localAddresses = array_merge($localAddresses, array_map('strtolower', $resolved));
+        }
+    }
+
+    return in_array($remote, array_unique($localAddresses), true);
 }
 
 function requireMaster(): void
