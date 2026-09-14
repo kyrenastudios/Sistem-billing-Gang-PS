@@ -61,29 +61,11 @@
     }
 
     window.gangPsApplyPcMode = applyPcMode;
-
     document.addEventListener('DOMContentLoaded', applyPcMode);
 
-    //======== Client Write Guard ========
-    document.addEventListener('click', event => {
-        if (window.gangPsGetLocalMode() !== 'client') return;
-        const target = event.target && event.target.closest ? event.target.closest(masterOnlySelector) : null;
-        if (!target) return;
-        event.preventDefault();
-        event.stopImmediatePropagation();
-    }, true);
-
-    document.addEventListener('submit', event => {
-        if (window.gangPsGetLocalMode() !== 'client') return;
-        const target = event.target;
-        if (!target) return;
-        if (target.matches(masterOnlySelector) || target.querySelector(masterOnlySelector)) {
-            event.preventDefault();
-            event.stopImmediatePropagation();
-        }
-    }, true);
-
     //======== Client Button Style ========
+    // CLIENT dikunci melalui disabled + CSS. Tidak ada global click/submit blocker,
+    // sehingga event handler billing MASTER tetap berjalan normal.
     const style = document.createElement('style');
     style.textContent = `
         .gang-ps-client .gang-ps-readonly-control,
