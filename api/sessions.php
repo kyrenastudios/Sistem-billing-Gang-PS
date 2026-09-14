@@ -73,7 +73,11 @@ try {
         response(['success'=>true,'data'=>$data]);
     }
 
+    //======== Master Write Guard ========
     if($_SERVER['REQUEST_METHOD']!=='POST') response(['success'=>false,'message'=>'Method tidak didukung.'],405);
+    $requestedMode=strtolower(trim((string)($_SERVER['HTTP_X_GANG_PS_MODE']??'')));
+    if($requestedMode!=='master') response(['success'=>false,'message'=>'PC CLIENT hanya memiliki akses baca.'],403);
+
     $data=readJson();
     if(!isset($data['consoles']) || !is_array($data['consoles'])) response(['success'=>false,'message'=>'Data consoles tidak valid.'],400);
 
