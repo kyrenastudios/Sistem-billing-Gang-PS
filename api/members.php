@@ -46,6 +46,8 @@ try {
         respond(['success' => true, 'data' => getMembers($pdo)]);
     }
 
+    requireMaster();
+
     if ($method === 'POST') {
         $data = inputJson();
 
