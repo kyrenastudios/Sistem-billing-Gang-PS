@@ -2,38 +2,118 @@
     //======== Session MySQL Sync ========
     const SESSION_API_URL = 'api/sessions.php';
     const originalSetItem = Storage.prototype.setItem;
-    let timer = null;
+    const POLL_MS = 2000;
+    let saveTimer = null;
+    let pollTimer = null;
     let inProgress = false;
-    let queued = false;
+    let queuedSave = null;
+    let applyingRemote = false;
+    let lastSavedSignature = '';
 
-    async function syncSessions() {
-        if (inProgress) { queued = true; return; }
+    function safeParse(value, fallback) {
+        try { const parsed = JSON.parse(value); return parsed; } catch (_) { return fallback; }
+    }
+
+    function mergeSessions(remoteConsoles) {
+        const local = safeParse(localStorage.getItem('consoles') || '[]', []);
+        const localByName = new Map((Array.isArray(local) ? local : []).map(c => [c.name, c]));
+        return (Array.isArray(remoteConsoles) ? remoteConsoles : []).map(remote => {
+            const old = localByName.get(remote.name) || {};
+            return {
+                ...old,
+                ...remote,
+                session: remote.session || null,
+                status: remote.status || 'available'
+            };
+        });
+    }
+
+    async function refresh() {
+        if (inProgress) return;
         inProgress = true;
         try {
-            const raw = localStorage.getItem('consoles');
-            const consoles = raw ? JSON.parse(raw) : [];
-            const response = await fetch(SESSION_API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ consoles: Array.isArray(consoles) ? consoles : [] })
+            const response = await fetch(`${SESSION_API_URL}?t=${Date.now()}`, {
+                method: 'GET',
+                credentials: 'same-origin',
+                cache: 'no-store'
             });
             const result = await response.json();
             if (!response.ok || !result.success) throw new Error(result.error || result.message || `HTTP ${response.status}`);
+            const remote = mergeSessions(result.data);
+            const signature = JSON.stringify(remote);
+            if (signature !== lastSavedSignature) {
+                applyingRemote = true;
+                try { localStorage.setItem('consoles', JSON.stringify(remote)); } finally { applyingRemote = false; }
+                lastSavedSignature = signature;
+                if (typeof window.gangPsApplyRemoteSessions === 'function') window.gangPsApplyRemoteSessions(remote);
+            }
+            return remote;
         } catch (error) {
-            console.error('Session MySQL sync gagal:', error);
+            console.error('Gagal memuat session dari MySQL:', error);
+            throw error;
         } finally {
             inProgress = false;
-            if (queued) { queued = false; schedule(); }
         }
     }
 
-    function schedule() {
-        clearTimeout(timer);
-        timer = setTimeout(syncSessions, 150);
+    async function push(consoles) {
+        const payload = Array.isArray(consoles) ? consoles : [];
+        const signature = JSON.stringify(payload);
+        lastSavedSignature = signature;
+        if (inProgress) {
+            queuedSave = payload;
+            return;
+        }
+        inProgress = true;
+        try {
+            const response = await fetch(SESSION_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ consoles: payload })
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success) throw new Error(result.error || result.message || `HTTP ${response.status}`);
+            const remote = mergeSessions(result.data || payload);
+            applyingRemote = true;
+            try { localStorage.setItem('consoles', JSON.stringify(remote)); } finally { applyingRemote = false; }
+            lastSavedSignature = JSON.stringify(remote);
+            if (typeof window.gangPsApplyRemoteSessions === 'function') window.gangPsApplyRemoteSessions(remote);
+            return remote;
+        } catch (error) {
+            console.error('Gagal menyimpan session ke MySQL:', error);
+            throw error;
+        } finally {
+            inProgress = false;
+            if (queuedSave) {
+                const next = queuedSave;
+                queuedSave = null;
+                push(next).catch(() => {});
+            }
+        }
+    }
+
+    function save(consoles) {
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(() => push(consoles).catch(() => {}), 80);
+        return Promise.resolve();
+    }
+
+    function schedulePoll() {
+        clearTimeout(pollTimer);
+        pollTimer = setTimeout(async () => {
+            await refresh().catch(() => {});
+            schedulePoll();
+        }, POLL_MS);
     }
 
     Storage.prototype.setItem = function(key, value) {
         originalSetItem.call(this, key, value);
-        if (key === 'consoles') schedule();
+        if (key === 'consoles' && !applyingRemote) {
+            // Cache lokal hanya sebagai fallback UI; session tetap disinkronkan ke MySQL lewat save().
+        }
     };
+
+    window.gangPsSessionSync = { refresh, save, push };
+    refresh().catch(() => {}).finally(schedulePoll);
 })();
