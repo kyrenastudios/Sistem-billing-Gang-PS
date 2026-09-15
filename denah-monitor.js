@@ -86,8 +86,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const el = document.createElement('div');
         el.className = `denah-station ${d.type} ${d.active ? 'in-use' : ''} ${d.paused ? 'paused' : ''}`;
         Object.assign(el.style, position);
-        // Fine alignment: move every billing box 2px to the left without changing its size.
-        el.style.transform = 'translateX(-2px)';
+        // Fine alignment: move every billing box 4px to the left without changing its size.
+        el.style.transform = 'translateX(-4px)';
         el.innerHTML = (d.active || d.paused)
             ? `<div class="station-name">${d.name}</div><div class="station-timer">${d.timer}</div><div class="station-use">Dipakai : ${d.use}</div>`
             : `<div class="station-name">${d.name}</div><div class="station-empty">KOSONG</div>`;
@@ -129,9 +129,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (shared) {
             overlays.appendChild(station(data(shared, sharedType, sharedNo), positions.sharedPs4Ps5));
         }
-
-        // PS4 No.4 sits below the shared PS5 No.1 / PS4 No.3 physical slot.
-        if (ps4[3]) overlays.appendChild(station(data(ps4[3], 'PS4', 4), positions.ps4No4));
 
         // Right side: PS3 No.1 through No.4.
         const ps3Positions = [positions.ps3No1, positions.ps3No2, positions.ps3No3, positions.ps3No4];
