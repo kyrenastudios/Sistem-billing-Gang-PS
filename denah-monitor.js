@@ -86,8 +86,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const el = document.createElement('div');
         el.className = `denah-station ${d.type} ${d.active ? 'in-use' : ''} ${d.paused ? 'paused' : ''}`;
         Object.assign(el.style, position);
-        // Fine alignment: move every billing box 4px to the left without changing its size.
-        el.style.transform = 'translateX(-4px)';
+        // Fine alignment: move every billing box 9px to the left from the original position.
+        el.style.transform = 'translateX(-9px)';
         el.innerHTML = (d.active || d.paused)
             ? `<div class="station-name">${d.name}</div><div class="station-timer">${d.timer}</div><div class="station-use">Dipakai : ${d.use}</div>`
             : `<div class="station-name">${d.name}</div><div class="station-empty">KOSONG</div>`;
