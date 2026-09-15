@@ -86,8 +86,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const el = document.createElement('div');
         el.className = `denah-station ${d.type} ${d.active ? 'in-use' : ''} ${d.paused ? 'paused' : ''}`;
         Object.assign(el.style, position);
-        // Fine alignment: move every billing box 9px to the left from the original position.
-        el.style.transform = 'translateX(-9px)';
+        // Fine alignment: move every billing box 4px to the left without changing its size.
+        el.style.transform = 'translateX(-4px)';
+        // Empty stations are neutral grey with 80% transparency (20% opacity).
+        // Type colors are shown only while the station is actually in use/paused.
+        if (!d.active && !d.paused) {
+            el.style.backgroundColor = 'rgba(128, 128, 128, 0.20)';
+            el.style.borderColor = 'rgba(90, 90, 90, 0.45)';
+            el.style.color = '#555';
+        }
         el.innerHTML = (d.active || d.paused)
             ? `<div class="station-name">${d.name}</div><div class="station-timer">${d.timer}</div><div class="station-use">Dipakai : ${d.use}</div>`
             : `<div class="station-name">${d.name}</div><div class="station-empty">KOSONG</div>`;
@@ -129,6 +136,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (shared) {
             overlays.appendChild(station(data(shared, sharedType, sharedNo), positions.sharedPs4Ps5));
         }
+
+        // PS4 No.4 sits below the shared PS5 No.1 / PS4 No.3 physical slot.
+        if (ps4[3]) overlays.appendChild(station(data(ps4[3], 'PS4', 4), positions.ps4No4));
 
         // Right side: PS3 No.1 through No.4.
         const ps3Positions = [positions.ps3No1, positions.ps3No2, positions.ps3No3, positions.ps3No4];
