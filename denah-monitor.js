@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ps4No2: { left:'3.8%', top:'7.0%', width:'22.0%', height:'23.0%' },
         sharedPs4Ps5: { left:'32.7%', top:'7.0%', width:'21.9%', height:'23.0%' },
         ps4No1: { left:'3.8%', top:'33.6%', width:'22.0%', height:'24.6%' },
-        ps4No3: { left:'33.0%', top:'33.6%', width:'21.3%', height:'24.6%' },
+        ps4No4: { left:'32.7%', top:'33.6%', width:'21.9%', height:'24.6%' },
         ps3No1: { left:'72.1%', top:'7.0%', width:'25.6%', height:'17.2%' },
         ps3No2: { left:'72.1%', top:'29.0%', width:'25.6%', height:'17.2%' },
         ps3No3: { left:'72.1%', top:'51.0%', width:'25.6%', height:'17.2%' },
@@ -38,6 +38,10 @@ document.addEventListener('DOMContentLoaded', () => {
             .sort((a,b) => consoleNumber(a) - consoleNumber(b));
     }
 
+    function isBusy(c){
+        return !!(c && c.session && (c.status === 'in-use' || c.status === 'paused'));
+    }
+
     function duration(ms){
         ms = Math.max(0, ms || 0);
         const t = Math.floor(ms/1000), h = Math.floor(t/3600), m = Math.floor((t%3600)/60), s = t%60;
@@ -47,15 +51,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function remaining(ms){ return ms <= 0 ? 'WAKTU HABIS' : duration(ms); }
 
     function mode(c){
-        const s = c?.session;
-        if (!s) return 'KOSONG';
-        if (s.type === 'open') return 'OPEN';
+        const s = c?.session; if (!s) return 'KOSONG'; if (s.type === 'open') return 'OPEN';
         const info = String(s.billingInfo || '');
         if (info.startsWith('Member Pass:')) return 'Member Pass';
-        const main = info.match(/^Main\s+(.+)$/i);
-        if (main) return main[1];
-        const total = info.match(/Total\s+(\d+(?:\.\d+)?)\s*Jam/i);
-        if (total) return `${total[1]} Jam`;
+        const main = info.match(/^Main\s+(.+)$/i); if (main) return main[1];
+        const total = info.match(/Total\s+(\d+(?:\.\d+)?)\s*Jam/i); if (total) return `${total[1]} Jam`;
         if (s.totalPaketMinutes){
             const mins = Number(s.totalPaketMinutes);
             return mins >= 60 ? `${mins/60} Jam` : `${mins} Menit`;
@@ -98,23 +98,37 @@ document.addEventListener('DOMContentLoaded', () => {
         const ps4 = byType('PS4');
         const ps5 = byType('PS5');
 
-        // Physical left-side slots: PS4 No.1, PS4 No.2, shared PS5 No.1 / PS4 No.3.
+        // Left side physical slots:
+        // NO.1 = PS4 No.1, NO.2 = PS4 No.2,
+        // top-right = shared PS5 No.1 / PS4 No.3,
+        // bottom-right = PS4 No.4.
         if (ps4[0]) overlays.appendChild(station(data(ps4[0], 'PS4', 1), positions.ps4No1));
         if (ps4[1]) overlays.appendChild(station(data(ps4[1], 'PS4', 2), positions.ps4No2));
+        if (ps4[3]) overlays.appendChild(station(data(ps4[3], 'PS4', 4), positions.ps4No4));
 
         // One physical slot can represent either PS5 No.1 or PS4 No.3.
-        // If both sessions are somehow active simultaneously, PS5 takes visual priority
-        // because it is the dedicated PS5 machine assigned to this physical location.
-        const shared = ps5[0] || ps4[2];
+        // Active/paused machine wins. If both are active, PS5 gets visual priority.
+        let shared = ps5[0];
+        let sharedType = 'PS5';
+        let sharedNo = 1;
+        if (isBusy(ps5[0])) {
+            shared = ps5[0];
+            sharedType = 'PS5';
+            sharedNo = 1;
+        } else if (isBusy(ps4[2])) {
+            shared = ps4[2];
+            sharedType = 'PS4';
+            sharedNo = 3;
+        } else if (!shared && ps4[2]) {
+            shared = ps4[2];
+            sharedType = 'PS4';
+            sharedNo = 3;
+        }
         if (shared) {
-            const isPs5 = shared === ps5[0];
-            overlays.appendChild(station(
-                data(shared, isPs5 ? 'PS5' : 'PS4', isPs5 ? 1 : 3),
-                positions.sharedPs4Ps5
-            ));
+            overlays.appendChild(station(data(shared, sharedType, sharedNo), positions.sharedPs4Ps5));
         }
 
-        // PS3 occupies the four physical boxes on the right.
+        // Right side: PS3 No.1 through No.4.
         const ps3Positions = [positions.ps3No1, positions.ps3No2, positions.ps3No3, positions.ps3No4];
         ps3.slice(0,4).forEach((c,i) => overlays.appendChild(station(data(c, 'PS3', i+1), ps3Positions[i])));
     }
