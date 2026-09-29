@@ -66,7 +66,8 @@
         applyingDatabase = true;
         try {
             const data = result.data;
-            applyArrayIfSafe('consoles', data.consoles);
+            // Active console sessions are owned by session-sync.js / api/sessions.php.
+            // Do not overwrite them here with the general database snapshot.
             applyArrayIfSafe('members', data.members);
             applyArrayIfSafe('customPackages', data.customPackages);
             if (Array.isArray(data.history)) historyCache = data.history;
