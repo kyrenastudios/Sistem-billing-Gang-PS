@@ -55,8 +55,10 @@ try {
             if(strpos($billing,'Member Pass: ')===0){ $findMember->execute([trim(substr($billing,13))]); $memberId=(int)($findMember->fetchColumn()?:0) ?: null; }
             $packageId=null; if($billing!=='OPEN' && $memberId===null){ $findPackage->execute([$billing]); $packageId=(int)($findPackage->fetchColumn()?:0) ?: null; }
             $billingType=$memberId?'member':($billing==='OPEN'?'hourly':'package'); $startMs=(int)($s['startTime']??0); $start=dtMs($startMs) ?: date('Y-m-d H:i:s'); $end=dtMs($s['endTime']??null); $pausedMs=max(0,(int)($s['totalPausedDuration']??0)); $pausedMinutes=(int)round($pausedMs/60000); $pausedSeconds=$billingType==='hourly'?(int)round($pausedMs/1000):$pausedMinutes*60; $pauseTime=dtMs($s['pauseTime']??null); $duration=(int)($s['totalPaketMinutes']??0); $cost=(float)($s['totalPaketCost']??0);
-            if($billingType==='hourly'){ $duration=max(0,(int)ceil((time()*1000-$startMs-$pausedMs)/60000)); $cost=calculateOpenCost((float)$dbConsole['hourly_price'],$startMs,$pausedMs); }
             $orders=json_encode($s['orders']??[],JSON_UNESCAPED_UNICODE); $notes=(string)($s['notes']??''); $findActive->execute([$consoleId]); $existingId=(int)($findActive->fetchColumn()?:0); $dbStatus=$status==='paused'?'paused':'active';
+            $billingStartMs=$startMs;
+            if($billingType==='hourly' && $existingId){ $storedStart=(int)($pdo->query("SELECT UNIX_TIMESTAMP(start_time)*1000 FROM sessions WHERE id=".(int)$existingId)->fetchColumn(); if($storedStart>0)$billingStartMs=$storedStart; }
+            if($billingType==='hourly'){ $duration=max(0,(int)ceil((time()*1000-$billingStartMs-$pausedMs)/60000)); $cost=calculateOpenCost((float)$dbConsole['hourly_price'],$billingStartMs,$pausedMs); }
             if($existingId) $update->execute([$memberId,$packageId,$billingType,$dbStatus,$start,$end,$duration,$pausedMinutes,$pausedSeconds,$cost,$notes,$orders,$pauseTime,$existingId]); else $insert->execute([$consoleId,$memberId,$packageId,$billingType,$dbStatus,$start,$end,$duration,$pausedMinutes,$pausedSeconds,$cost,$notes,$orders,$pauseTime]);
             $setConsoleStatus->execute([$status==='paused'?'paused':'playing',$consoleId]);
         }
