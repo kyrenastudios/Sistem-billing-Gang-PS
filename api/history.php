@@ -24,7 +24,7 @@ function fetchHistory(PDO $pdo): array {
         if($type==='direct_sale'){$consoleName='Penjualan Langsung';$billingInfo='Penjualan Langsung';}
         elseif($type==='member_registration'){$consoleName='Pendaftaran Member';$billingInfo='Play Pass - '.($row['member_name']??'');}
         elseif($type==='member_renewal'){$consoleName='Perpanjangan Member';$billingInfo='Perpanjangan Pass - '.($row['member_name']??'');}
-        else{$consoleName=$row['console_name']??'Konsol';$billingInfo=!empty($row['member_name'])?'Member Pass: '.$row['member_name']:(!empty($row['package_name'])?$row['package_name']:'OPEN');}
+        else{$consoleName=$row['console_name']??'Konsol';$billingInfo=!empty($row['member_name'])?'Member Pass: '.$row['member_name']:(!empty($row['package_name'])?$row['package_name']:(($row['session_package_id']!==null && isset($row['session_package_id']))?'Paket':'OPEN'));}
         $startSource=$row['session_start']?:$row['transaction_date'];$endSource=$row['session_end']?:$row['transaction_date'];
         $history[]=['date'=>date('Y-m-d',strtotime($row['transaction_date'])),'consoleName'=>$consoleName,'sessionId'=>$row['session_id']!==null?(int)$row['session_id']:null,'startTime'=>date('H:i:s',strtotime($startSource)),'endTime'=>date('H:i:s',strtotime($endSource)),'durationMinutes'=>$row['session_duration']!==null?(int)$row['session_duration']:0,'durationSeconds'=>$row['session_duration']!==null?(int)$row['session_duration']*60:0,'rentalCost'=>(float)$row['rental_cost'],'orderCost'=>(float)$row['order_cost'],'totalCost'=>(float)$row['total_cost'],'orders'=>$itemsByTx[(int)$row['id']]??[],'billingInfo'=>$billingInfo,'notes'=>$row['notes']??'','paidAmount'=>(float)$row['paid_amount'],'changeAmount'=>(float)$row['change_amount']];
     }
