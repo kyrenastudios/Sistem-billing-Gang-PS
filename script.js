@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function findConsole(id){return consoles.find(c=>c.id===id)}
     function formatDuration(ms){if(ms<0)ms=0;const t=Math.floor(ms/1e3),e=Math.floor(t/3600),o=Math.floor(t%3600/60);return `${String(e).padStart(2,'0')}:${String(o).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`}
     function formatCurrency(amount){return new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',minimumFractionDigits:0}).format(amount)}
-    Object.values(modals).forEach(m=>{if(m){const btn=m.querySelector('.close-btn');if(btn)btn.onclick=()=>{if(m===modals.payment&&pendingStopData){pendingStopData=null;updateTimers()}m.style.display='none'}}});window.onclick=e=>{if(e.target.classList.contains('modal'))e.target.style.display='none'};
+    Object.values(modals).forEach(m=>{if(m){const btn=m.querySelector('.close-btn');if(btn)btn.onclick=()=>{if(m===modals.payment&&pendingStopData){pendingStopData=null;updateTimers()}m.style.display='none'}}});window.onclick=e=>{if(e.target.classList.contains('modal')){if(e.target===modals.payment&&pendingStopData){pendingStopData=null;updateTimers()}e.target.style.display='none'}};
     window.gangPsApplyRemoteSessions=function(remoteConsoles){if(!Array.isArray(remoteConsoles))return;consoles=remoteConsoles;localStorage.setItem('consoles',JSON.stringify(consoles));if(consoles.length>0){consoleList.style.display='grid';noConsolesMessage.style.display='none';renderConsoles();clearInterval(timerInterval);timerInterval=setInterval(updateTimers,1000)}else{consoleList.style.display='none';noConsolesMessage.style.display='block'}};
     initialize();
 });
