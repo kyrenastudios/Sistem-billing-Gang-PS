@@ -93,8 +93,30 @@ try {
             if(!in_array($status,['in-use','paused'],true)){ $complete->execute([$consoleId]); $setConsoleStatus->execute(['available',$consoleId]); continue; }
             $s=$console['session']??null; if(!is_array($s)) continue; $billing=(string)($s['billingInfo']??'OPEN'); $memberId=null;
             if(strpos($billing,'Member Pass: ')===0){ $findMember->execute([trim(substr($billing,13))]); $memberId=(int)($findMember->fetchColumn()?:0) ?: null; }
-            $packageId=null; if($billing!=='OPEN' && $memberId===null){ $findPackage->execute([$billing]); $packageId=(int)($findPackage->fetchColumn()?:0) ?: null; }
-            $billingType=$memberId?'member':($billing==='OPEN'?'hourly':'package'); $startMs=(int)($s['startTime']??0); $start=dtMs($startMs) ?: date('Y-m-d H:i:s'); $end=dtMs($s['endTime']??null); $pausedMs=max(0,(int)($s['totalPausedDuration']??0)); $pausedMinutes=(int)round($pausedMs/60000); $pausedSeconds=$billingType==='hourly'?(int)round($pausedMs/1000):$pausedMinutes*60; $pauseTime=dtMs($s['pauseTime']??null); $duration=(int)($s['totalPaketMinutes']??0); $cost=(float)($s['totalPaketCost']??0);
+            $packageId=null; if($billing!=='OPEN' && $memberId===null){
+                $findPackage->execute([$billing]);
+                $packageId=(int)($findPackage->fetchColumn()?:0) ?: null;
+            }
+            $billingType=$memberId?'member':($billing==='OPEN'?'hourly':'package');
+            if($billingType==='package' && $packageId===null){
+                // Paket yang dipilih dari dashboard bisa berasal dari localStorage.
+                // Buat/simpan master package-nya agar session punya package_id
+                // dan History dapat menampilkan nama paket yang sebenarnya.
+                $packageDuration=(int)($s['totalPaketMinutes']??0);
+                $packagePrice=(int)round((float)($s['totalPaketCost']??0));
+                if($billing!==''){
+                    $createPackage=$pdo->prepare("INSERT INTO packages (name,console_type,duration_minutes,price,is_active) VALUES (?,?,?,?,1)");
+                    try{
+                        $createPackage->execute([$billing,(string)$dbConsole['console_type'],$packageDuration,$packagePrice]);
+                        $packageId=(int)$pdo->lastInsertId();
+                    }catch(PDOException $e){
+                        if((int)($e->errorInfo[1]??0)===1062){
+                            $findPackage->execute([$billing]);
+                            $packageId=(int)($findPackage->fetchColumn()?:0) ?: null;
+                        }else{throw $e;}
+                    }
+                }
+            } $startMs=(int)($s['startTime']??0); $start=dtMs($startMs) ?: date('Y-m-d H:i:s'); $end=dtMs($s['endTime']??null); $pausedMs=max(0,(int)($s['totalPausedDuration']??0)); $pausedMinutes=(int)round($pausedMs/60000); $pausedSeconds=$billingType==='hourly'?(int)round($pausedMs/1000):$pausedMinutes*60; $pauseTime=dtMs($s['pauseTime']??null); $duration=(int)($s['totalPaketMinutes']??0); $cost=(float)($s['totalPaketCost']??0);
             $orders=json_encode($s['orders']??[],JSON_UNESCAPED_UNICODE); $notes=(string)($s['notes']??''); $findActive->execute([$consoleId]); $existingId=(int)($findActive->fetchColumn()?:0); $dbStatus=$status==='paused'?'paused':'active';
             $billingStartMs=$startMs;
             if($billingType==='hourly' && $existingId){ $storedStart=(int)($pdo->query("SELECT UNIX_TIMESTAMP(start_time)*1000 FROM sessions WHERE id=".(int)$existingId)->fetchColumn(); if($storedStart>0)$billingStartMs=$storedStart; }
