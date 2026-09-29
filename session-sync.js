@@ -116,6 +116,20 @@
         }
     };
 
+    async function completeSession(data) {
+        if (localMode() !== 'master') throw new Error('PC CLIENT tidak dapat menyelesaikan session.');
+        const payload = data && typeof data === 'object' ? data : {};
+        const response = await fetch(SESSION_API_URL, {
+            method:'POST',
+            headers:{'Content-Type':'application/json',...modeHeaders()},
+            credentials:'same-origin',
+            body:JSON.stringify({action:'complete',...payload})
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.error || result.message || `HTTP ${response.status}`);
+        return result;
+    }
+
     window.gangPsSessionSync = { refresh, save, push, isMaster:() => localMode() === 'master' };
     refresh().catch(() => {}).finally(schedulePoll);
 })();
