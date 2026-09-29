@@ -130,6 +130,6 @@
         return result;
     }
 
-    window.gangPsSessionSync = { refresh, save, push, isMaster:() => localMode() === 'master' };
+    window.gangPsSessionSync = { refresh, save, push, completeSession, isMaster:() => localMode() === 'master' };
     refresh().catch(() => {}).finally(schedulePoll);
 })();
