@@ -18,7 +18,7 @@ function sessionForClient(array $row): array {
     $billingInfo=$billing==='member'&&$memberName!==''?'Member Pass: '.$memberName:($billing==='hourly'?'OPEN':$packageName);
     $startMs=(int)dbMs($row['start_time']); $endMs=dbMs($row['end_time']); $pauseMs=dbMs($row['pause_time']); $pausedTotal=$billing==='hourly'?max(0,(int)($row['paused_seconds']??0))*1000:max(0,(int)$row['paused_minutes'])*60000;
     $frozenElapsed=max(0,($pauseMs??$startMs)-$startMs-$pausedTotal); $frozenDisplay=$billing==='hourly'?formatDurationMs($frozenElapsed):formatDurationMs(max(0,($endMs??0)-($pauseMs??0)));
-    return ['type'=>$billing==='hourly'?'open':'paket','startTime'=>$startMs,'endTime'=>$endMs,'pauseTime'=>$pauseMs,'totalPausedDuration'=>$pausedTotal,'frozenTimeDisplay'=>$frozenDisplay,'frozenElapsedTime'=>$frozenElapsed,'totalPaketMinutes'=>(int)($row['duration_minutes']??0),'totalPaketCost'=>(float)($row['rental_cost']??0),'soundPlayed'=>false,'notes'=>(string)($row['notes']??''),'orders'=>$orders,'billingInfo'=>$billingInfo];
+    return ['sessionId'=>(int)($row['session_id']??0),'type'=>$billing==='hourly'?'open':'paket','startTime'=>$startMs,'endTime'=>$endMs,'pauseTime'=>$pauseMs,'totalPausedDuration'=>$pausedTotal,'frozenTimeDisplay'=>$frozenDisplay,'frozenElapsedTime'=>$frozenElapsed,'totalPaketMinutes'=>(int)($row['duration_minutes']??0),'totalPaketCost'=>(float)($row['rental_cost']??0),'soundPlayed'=>false,'notes'=>(string)($row['notes']??''),'orders'=>$orders,'billingInfo'=>$billingInfo];
 }
 
 function fetchServerTruth(PDO $pdo): array {
@@ -42,6 +42,39 @@ try {
     if($_SERVER['REQUEST_METHOD']!=='POST') response(['success'=>false,'message'=>'Method tidak didukung.'],405);
     if(!gangPsIsMasterRequest()) response(['success'=>false,'message'=>'PC CLIENT hanya memiliki akses baca.'],403);
     $data=readJson();
+
+    //======== Authoritative Session Completion ========
+    if(($data['action']??'')==='complete'){
+        $sessionId=(int)($data['sessionId']??0);
+        $consoleName=trim((string)($data['consoleName']??''));
+        $startMs=(int)($data['startTime']??0);
+        $endMs=(int)($data['endTime']??0);
+        $durationMs=max(0,(int)($data['durationMs']??0));
+        $durationMinutes=(int)floor($durationMs/60000);
+        $rentalCost=(float)($data['rentalCost']??0);
+        $notes=(string)($data['notes']??'');
+        $orders=json_encode($data['orders']??[],JSON_UNESCAPED_UNICODE);
+        $pdo->beginTransaction();
+        try{
+            if($sessionId>0){
+                $find=$pdo->prepare("SELECT id FROM sessions WHERE id=? LIMIT 1");
+                $find->execute([$sessionId]);
+                $targetId=(int)($find->fetchColumn()?:0);
+            }else{
+                $find=$pdo->prepare("SELECT s.id FROM sessions s INNER JOIN consoles c ON c.id=s.console_id WHERE c.name=? AND s.start_time=? ORDER BY s.id DESC LIMIT 1");
+                $find->execute([$consoleName,dtMs($startMs)?:date('Y-m-d H:i:s')]);
+                $targetId=(int)($find->fetchColumn()?:0);
+            }
+            if($targetId<=0){$pdo->rollBack();response(['success'=>false,'message'=>'Session yang akan diselesaikan tidak ditemukan.'],404);}
+            $updateComplete=$pdo->prepare("UPDATE sessions SET status='completed',end_time=?,duration_minutes=?,rental_cost=?,notes=?,orders_json=?,pause_time=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=?");
+            $updateComplete->execute([dtMs($endMs)?:date('Y-m-d H:i:s'),$durationMinutes,$rentalCost,$notes,$orders,$targetId]);
+            $consoleId=(int)$pdo->query("SELECT console_id FROM sessions WHERE id=".(int)$targetId)->fetchColumn();
+            if($consoleId>0)$pdo->prepare("UPDATE consoles SET status='available',updated_at=CURRENT_TIMESTAMP WHERE id=?")->execute([$consoleId]);
+            $pdo->commit();
+        }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+        response(['success'=>true,'sessionId'=>$targetId]);
+    }
+
     if(!isset($data['consoles']) || !is_array($data['consoles'])) response(['success'=>false,'message'=>'Data consoles tidak valid.'],400);
 
     $pdo->beginTransaction();
