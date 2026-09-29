@@ -17,7 +17,7 @@ function historySignature(array $item): string { $orders=[]; foreach(($item['ord
 function fetchHistory(PDO $pdo): array {
     $itemsByTx=[];
     foreach($pdo->query("SELECT transaction_id,menu_item_id,item_name,unit_price,quantity FROM transaction_items ORDER BY id ASC")->fetchAll() as $row){$itemsByTx[(int)$row['transaction_id']][]=['id'=>$row['menu_item_id']?'item-'.(int)$row['menu_item_id']:null,'name'=>$row['item_name'],'price'=>(float)$row['unit_price'],'quantity'=>(int)$row['quantity']];}
-    $sql="SELECT t.*,s.start_time AS session_start,s.end_time AS session_end,s.duration_minutes AS session_duration,s.package_id AS session_package_id,c.name AS console_name,m.name AS member_name,p.name AS package_name FROM transactions t LEFT JOIN sessions s ON s.id=t.session_id LEFT JOIN consoles c ON c.id=s.console_id LEFT JOIN members m ON m.id=t.member_id LEFT JOIN packages p ON p.id=s.package_id ORDER BY t.transaction_date ASC,t.id ASC";
+    $sql="SELECT t.*,s.start_time AS session_start,s.end_time AS session_end,s.duration_minutes AS session_duration,s.package_id AS session_package_id,s.package_name AS session_package_name,c.name AS console_name,m.name AS member_name,p.name AS package_name FROM transactions t LEFT JOIN sessions s ON s.id=t.session_id LEFT JOIN consoles c ON c.id=s.console_id LEFT JOIN members m ON m.id=t.member_id LEFT JOIN packages p ON p.id=s.package_id ORDER BY t.transaction_date ASC,t.id ASC";
     $history=[];
     foreach($pdo->query($sql)->fetchAll() as $row){
         $type=$row['transaction_type'];
