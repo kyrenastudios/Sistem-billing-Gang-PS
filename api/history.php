@@ -12,6 +12,14 @@ function historyDateTime(?string $date,?string $time): string { $date=trim((stri
 function historyMemberName(array $item): ?string { $billing=(string)($item['billingInfo']??''); if(strpos($billing,'Member Pass: ')===0)return trim(substr($billing,13)); if(strpos($billing,'Play Pass - ')===0)return trim(substr($billing,12)); if(strpos($billing,'Perpanjangan Pass - ')===0)return trim(substr($billing,20)); return null; }
 function historyType(array $item): string { $name=strtolower(trim((string)($item['consoleName']??''))); if($name==='penjualan langsung')return'direct_sale'; if($name==='pendaftaran member')return'member_registration'; if($name==='perpanjangan member')return'member_renewal'; return'rental'; }
 function historySignature(array $item): string { $orders=[]; foreach(($item['orders']??[]) as $order){$orders[]=['id'=>(string)($order['id']??''),'name'=>(string)($order['name']??''),'price'=>(float)($order['price']??0),'quantity'=>(int)($order['quantity']??1)];} return hash('sha256',json_encode(['date'=>(string)($item['date']??''),'consoleName'=>(string)($item['consoleName']??''),'startTime'=>historyTime($item['startTime']??null),'endTime'=>historyTime($item['endTime']??null),'durationMinutes'=>(int)($item['durationMinutes']??0),'rentalCost'=>(float)($item['rentalCost']??0),'orderCost'=>(float)($item['orderCost']??0),'totalCost'=>(float)($item['totalCost']??0),'billingInfo'=>(string)($item['billingInfo']??''),'notes'=>(string)($item['notes']??''),'orders'=>$orders],JSON_UNESCAPED_UNICODE)); }
+function historyDurationMinutes(?string $start,?string $end,?string $storedDuration): int {
+    $duration=(int)($storedDuration??0);
+    if($duration>0)return $duration;
+    if(!$start||!$end)return 0;
+    $startTs=strtotime($start); $endTs=strtotime($end);
+    if($startTs===false||$endTs===false)return 0;
+    return max(0,(int)floor(($endTs-$startTs)/60));
+}
 
 //======== Read History ========
 function fetchHistory(PDO $pdo): array {
@@ -25,8 +33,9 @@ function fetchHistory(PDO $pdo): array {
         elseif($type==='member_registration'){$consoleName='Pendaftaran Member';$billingInfo='Play Pass - '.($row['member_name']??'');}
         elseif($type==='member_renewal'){$consoleName='Perpanjangan Member';$billingInfo='Perpanjangan Pass - '.($row['member_name']??'');}
         else{$consoleName=$row['console_name']??'Konsol';$billingInfo=!empty($row['member_name'])?'Member Pass: '.$row['member_name']:(!empty($row['package_name'])?$row['package_name']:'OPEN');}
-        $startSource=$row['session_start']?:$row['transaction_date'];$endSource=$row['session_end']?:$row['transaction_date'];
-        $history[]=['date'=>date('Y-m-d',strtotime($row['transaction_date'])),'consoleName'=>$consoleName,'sessionId'=>$row['session_id']!==null?(int)$row['session_id']:null,'startTime'=>date('H:i:s',strtotime($startSource)),'endTime'=>date('H:i:s',strtotime($endSource)),'durationMinutes'=>$row['session_duration']!==null?(int)$row['session_duration']:0,'durationSeconds'=>$row['session_duration']!==null?(int)$row['session_duration']*60:0,'rentalCost'=>(float)$row['rental_cost'],'orderCost'=>(float)$row['order_cost'],'totalCost'=>(float)$row['total_cost'],'orders'=>$itemsByTx[(int)$row['id']]??[],'billingInfo'=>$billingInfo,'notes'=>$row['notes']??'','paidAmount'=>(float)$row['paid_amount'],'changeAmount'=>(float)$row['change_amount']];
+        $startSource=$row['session_start']?:$row['transaction_date']; $endSource=$row['session_end']?:$row['transaction_date'];
+        $durationMinutes=historyDurationMinutes($startSource,$endSource,$row['session_duration']);
+        $history[]=['date'=>date('Y-m-d',strtotime($row['transaction_date'])),'consoleName'=>$consoleName,'sessionId'=>$row['session_id']!==null?(int)$row['session_id']:null,'startTime'=>date('H:i:s',strtotime($startSource)),'endTime'=>date('H:i:s',strtotime($endSource)),'durationMinutes'=>$durationMinutes,'durationSeconds'=>$durationMinutes*60,'rentalCost'=>(float)$row['rental_cost'],'orderCost'=>(float)$row['order_cost'],'totalCost'=>(float)$row['total_cost'],'orders'=>$itemsByTx[(int)$row['id']]??[],'billingInfo'=>$billingInfo,'notes'=>$row['notes']??'','paidAmount'=>(float)$row['paid_amount'],'changeAmount'=>(float)$row['change_amount']];
     }
     return $history;
 }
