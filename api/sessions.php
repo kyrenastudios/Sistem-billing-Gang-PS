@@ -66,13 +66,20 @@ try {
                 $targetId=(int)($find->fetchColumn()?:0);
             }
             if($targetId<=0){$pdo->rollBack();response(['success'=>false,'message'=>'Session yang akan diselesaikan tidak ditemukan.'],404);}
+            $sessionRow=$pdo->query("SELECT start_time,paused_seconds FROM sessions WHERE id=".(int)$targetId)->fetch(PDO::FETCH_ASSOC);
+            if(!$sessionRow){$pdo->rollBack();response(['success'=>false,'message'=>'Session tidak ditemukan.'],404);}
+            $finalEnd=dtMs($endMs)?:date('Y-m-d H:i:s');
+            $finalStart=strtotime($sessionRow['start_time']);
+            $finalEndTs=strtotime($finalEnd);
+            $pausedSeconds=max(0,(int)($sessionRow['paused_seconds']??0));
+            $serverDurationMinutes=max(0,(int)floor(max(0,$finalEndTs-$finalStart-$pausedSeconds)/60));
             $updateComplete=$pdo->prepare("UPDATE sessions SET status='completed',end_time=?,duration_minutes=?,rental_cost=?,notes=?,orders_json=?,pause_time=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=?");
-            $updateComplete->execute([dtMs($endMs)?:date('Y-m-d H:i:s'),$durationMinutes,$rentalCost,$notes,$orders,$targetId]);
+            $updateComplete->execute([$finalEnd,$serverDurationMinutes,$rentalCost,$notes,$orders,$targetId]);
             $consoleId=(int)$pdo->query("SELECT console_id FROM sessions WHERE id=".(int)$targetId)->fetchColumn();
             if($consoleId>0)$pdo->prepare("UPDATE consoles SET status='available',updated_at=CURRENT_TIMESTAMP WHERE id=?")->execute([$consoleId]);
             $pdo->commit();
         }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
-        response(['success'=>true,'sessionId'=>$targetId]);
+        response(['success'=>true,'sessionId'=>$targetId,'durationMinutes'=>$serverDurationMinutes]);
     }
 
     if(!isset($data['consoles']) || !is_array($data['consoles'])) response(['success'=>false,'message'=>'Data consoles tidak valid.'],400);
@@ -91,7 +98,7 @@ try {
             $orders=json_encode($s['orders']??[],JSON_UNESCAPED_UNICODE); $notes=(string)($s['notes']??''); $findActive->execute([$consoleId]); $existingId=(int)($findActive->fetchColumn()?:0); $dbStatus=$status==='paused'?'paused':'active';
             $billingStartMs=$startMs;
             if($billingType==='hourly' && $existingId){ $storedStart=(int)($pdo->query("SELECT UNIX_TIMESTAMP(start_time)*1000 FROM sessions WHERE id=".(int)$existingId)->fetchColumn(); if($storedStart>0)$billingStartMs=$storedStart; }
-            if($billingType==='hourly'){ $duration=max(0,(int)ceil((time()*1000-$billingStartMs-$pausedMs)/60000)); $cost=calculateOpenCost((float)$dbConsole['hourly_price'],$billingStartMs,$pausedMs); }
+            if($billingType==='hourly'){ $duration=max(0,(int)floor((time()*1000-$billingStartMs-$pausedMs)/60000)); $cost=calculateOpenCost((float)$dbConsole['hourly_price'],$billingStartMs,$pausedMs); }
             $persistedStart=dtMs($billingStartMs) ?: $start;
             if($existingId) $update->execute([$memberId,$packageId,$billingType,$dbStatus,$persistedStart,$end,$duration,$pausedMinutes,$pausedSeconds,$cost,$notes,$orders,$pauseTime,$existingId]); else $insert->execute([$consoleId,$memberId,$packageId,$billingType,$dbStatus,$persistedStart,$end,$duration,$pausedMinutes,$pausedSeconds,$cost,$notes,$orders,$pauseTime]);
             $setConsoleStatus->execute([$status==='paused'?'paused':'playing',$consoleId]);
