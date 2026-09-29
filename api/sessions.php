@@ -59,7 +59,8 @@ try {
             $billingStartMs=$startMs;
             if($billingType==='hourly' && $existingId){ $storedStart=(int)($pdo->query("SELECT UNIX_TIMESTAMP(start_time)*1000 FROM sessions WHERE id=".(int)$existingId)->fetchColumn(); if($storedStart>0)$billingStartMs=$storedStart; }
             if($billingType==='hourly'){ $duration=max(0,(int)ceil((time()*1000-$billingStartMs-$pausedMs)/60000)); $cost=calculateOpenCost((float)$dbConsole['hourly_price'],$billingStartMs,$pausedMs); }
-            if($existingId) $update->execute([$memberId,$packageId,$billingType,$dbStatus,$start,$end,$duration,$pausedMinutes,$pausedSeconds,$cost,$notes,$orders,$pauseTime,$existingId]); else $insert->execute([$consoleId,$memberId,$packageId,$billingType,$dbStatus,$start,$end,$duration,$pausedMinutes,$pausedSeconds,$cost,$notes,$orders,$pauseTime]);
+            $persistedStart=dtMs($billingStartMs) ?: $start;
+            if($existingId) $update->execute([$memberId,$packageId,$billingType,$dbStatus,$persistedStart,$end,$duration,$pausedMinutes,$pausedSeconds,$cost,$notes,$orders,$pauseTime,$existingId]); else $insert->execute([$consoleId,$memberId,$packageId,$billingType,$dbStatus,$persistedStart,$end,$duration,$pausedMinutes,$pausedSeconds,$cost,$notes,$orders,$pauseTime]);
             $setConsoleStatus->execute([$status==='paused'?'paused':'playing',$consoleId]);
         }
         $pdo->commit();
