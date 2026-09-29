@@ -200,3 +200,7 @@ body.history-page #history-table td { color: #393847; }
 body.history-page #daily-summary-container { background: #ffffff; border-color: #e7e9ee; }
 body.history-page footer { color: #000000; border-top-color: #e3e5ea; }
 body.history-page footer { color: #000000; border-top-color: #e3e5ea; }
+
+/* Payment modal must stay above other billing layers and receive clicks reliably. */
+#payment-modal { z-index: 2000; pointer-events: auto; }
+#payment-modal .modal-content { pointer-events: auto; }
